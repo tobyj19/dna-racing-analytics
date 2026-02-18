@@ -6,6 +6,13 @@ st.set_page_config(page_title="Race History", page_icon="🏁", layout="wide")
 st.title("🏁 Race History & Charts")
 st.markdown("Interactive visualizations of position distributions and finish times")
 
+# Global averages by class (cb values)
+GLOBAL_AVERAGES = {
+    9: 50.3, 10: 56.9, 11: 63.8, 12: 70.5, 13: 76.8, 14: 82.8,
+    15: 88.8, 16: 94.6, 17: 100.9, 18: 106.8, 19: 112.7, 20: 118.9,
+    21: 124.4, 22: 130.7, 23: 137.6
+}
+
 # Check if core data exists
 if 'mini' not in st.session_state or 'races' not in st.session_state:
     st.warning("⚠️ No core data loaded. Please search for a core in the **Core Search** page first.")
@@ -13,7 +20,6 @@ if 'mini' not in st.session_state or 'races' not in st.session_state:
 
 mini = st.session_state.mini
 races = st.session_state.races
-GLOBAL_AVERAGES = st.session_state.GLOBAL_AVERAGES
 
 st.header(f"Race Data for Core #{mini['hid']} - {mini.get('name', 'Unnamed')}")
 
