@@ -1,14 +1,42 @@
 import streamlit as st
-import sys
-sys.path.append('..')
+import requests
+from typing import Optional, Tuple
 
 st.set_page_config(page_title="Core Search", page_icon="🔍", layout="wide")
 
 st.title("🔍 Core Search & Overview")
 st.markdown("Search for a DNA Racing core and view its basic information")
 
-# Access shared functions
-fetch_core_data = st.session_state.get('fetch_core_data')
+# API Configuration
+API_BASE_URL = "https://api.dnaracing.run/fbike"
+
+def fetch_api(endpoint: str, data: dict) -> Optional[dict]:
+    """Fetch data from DNA Racing API"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}{endpoint}",
+            json=data,
+            headers={"Content-Type": "application/json"},
+            timeout=30
+        )
+        response.raise_for_status()
+        result = response.json()
+        if result.get("status") == "success":
+            return result.get("result")
+        return None
+    except Exception as e:
+        st.error(f"API Error: {str(e)}")
+        return None
+
+def fetch_core_data(hid: int) -> Tuple[Optional[dict], Optional[dict], Optional[dict], Optional[list]]:
+    """Fetch all core data"""
+    with st.spinner(f"Fetching data for Core #{hid}..."):
+        mini = fetch_api("/cores/mini", {"hid": hid})
+        power = fetch_api("/cores/power", {"hid": hid})
+        stats = fetch_api("/cores/racing_stats", {"hid": hid})
+        races = fetch_api("/i/hraces", {"hid": hid, "limit": 10000})
+    
+    return mini, power, stats, races
 
 # Search section
 col1, col2 = st.columns([3, 1])
