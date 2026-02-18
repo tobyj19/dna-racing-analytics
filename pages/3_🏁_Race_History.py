@@ -40,7 +40,7 @@ for race in mode_races:
         distance_data[cb] = []
     distance_data[cb].append(race['pos'])
 
-sorted_distances = sorted(distance_data.keys())
+sorted_distances = sorted(distance_data.keys(), key=lambda x: int(x) if isinstance(x, (int, float, str)) else x)
 
 # Create tabs for better organization
 if len(sorted_distances) > 3:
@@ -144,7 +144,7 @@ for race in timing_races:
         timing_data[cb] = []
     timing_data[cb].append(race['time'])
 
-sorted_timing_distances = sorted(timing_data.keys())
+sorted_timing_distances = sorted(timing_data.keys(), key=lambda x: int(x) if isinstance(x, (int, float, str)) else x)
 
 for distance in sorted_timing_distances:
     times = sorted(timing_data[distance])
