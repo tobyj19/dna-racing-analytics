@@ -99,7 +99,7 @@ if len(sorted_distances) > 3:
                     xaxis=dict(tickmode='linear', tick0=1, dtick=1)
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key=f"pos_chart_{mode}_{distance}")
 else:
     # Show all if 3 or fewer
     for distance in sorted_distances:
@@ -134,7 +134,7 @@ else:
             xaxis=dict(tickmode='linear', tick0=1, dtick=1)
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=f"pos_chart_simple_{mode}_{distance}")
 
 st.divider()
 
@@ -217,6 +217,6 @@ for distance in sorted_timing_distances:
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=f"timing_chart_{mode}_{distance}")
 
 st.info("💡 Tip: Points closer to the left (faster times) indicate better performance. Compare your average to the global average!")
