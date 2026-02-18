@@ -1,9 +1,32 @@
 import streamlit as st
+import requests
+from typing import Optional
 
 st.set_page_config(page_title="Breeding & Lineage", page_icon="🧬", layout="wide")
 
 st.title("🧬 Breeding & Lineage")
 st.markdown("Explore the core's breeding history, offspring, and family tree")
+
+# API Configuration
+API_BASE_URL = "https://api.dnaracing.run/fbike"
+
+def fetch_api(endpoint: str, data: dict) -> Optional[dict]:
+    """Fetch data from DNA Racing API"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}{endpoint}",
+            json=data,
+            headers={"Content-Type": "application/json"},
+            timeout=30
+        )
+        response.raise_for_status()
+        result = response.json()
+        if result.get("status") == "success":
+            return result.get("result")
+        return None
+    except Exception as e:
+        st.error(f"API Error: {str(e)}")
+        return None
 
 # Check if core data exists
 if 'mini' not in st.session_state:
@@ -11,7 +34,6 @@ if 'mini' not in st.session_state:
     st.stop()
 
 mini = st.session_state.mini
-fetch_api = st.session_state.fetch_api
 
 st.header(f"Lineage for Core #{mini['hid']} - {mini.get('name', 'Unnamed')}")
 
