@@ -58,6 +58,7 @@ if len(sorted_distances) > 3:
             end_idx = min(start_idx + distances_per_tab, len(sorted_distances))
             
             for distance in sorted_distances[start_idx:end_idx]:
+                distance = int(distance)  # Ensure distance is an integer
                 positions = distance_data[distance]
                 
                 # Count positions 1-14
@@ -96,6 +97,7 @@ if len(sorted_distances) > 3:
 else:
     # Show all if 3 or fewer
     for distance in sorted_distances:
+        distance = int(distance)  # Ensure distance is an integer
         positions = distance_data[distance]
         
         position_counts = {i: 0 for i in range(1, 15)}
@@ -147,6 +149,7 @@ for race in timing_races:
 sorted_timing_distances = sorted(timing_data.keys(), key=lambda x: int(x) if isinstance(x, (int, float, str)) else x)
 
 for distance in sorted_timing_distances:
+    distance = int(distance)  # Ensure distance is an integer
     times = sorted(timing_data[distance])
     
     if not times:
