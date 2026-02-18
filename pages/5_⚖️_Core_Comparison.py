@@ -1,14 +1,51 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import requests
+from typing import Optional, Tuple
 
 st.set_page_config(page_title="Core Comparison", page_icon="⚖️", layout="wide")
 
 st.title("⚖️ Core Comparison")
 st.markdown("Compare up to 3 cores side-by-side to find the best performer")
 
-fetch_core_data = st.session_state.fetch_core_data
-GLOBAL_AVERAGES = st.session_state.GLOBAL_AVERAGES
+# Global averages by class (cb values)
+GLOBAL_AVERAGES = {
+    9: 50.3, 10: 56.9, 11: 63.8, 12: 70.5, 13: 76.8, 14: 82.8,
+    15: 88.8, 16: 94.6, 17: 100.9, 18: 106.8, 19: 112.7, 20: 118.9,
+    21: 124.4, 22: 130.7, 23: 137.6
+}
+
+# API Configuration
+API_BASE_URL = "https://api.dnaracing.run/fbike"
+
+def fetch_api(endpoint: str, data: dict) -> Optional[dict]:
+    """Fetch data from DNA Racing API"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}{endpoint}",
+            json=data,
+            headers={"Content-Type": "application/json"},
+            timeout=30
+        )
+        response.raise_for_status()
+        result = response.json()
+        if result.get("status") == "success":
+            return result.get("result")
+        return None
+    except Exception as e:
+        st.error(f"API Error: {str(e)}")
+        return None
+
+def fetch_core_data(hid: int) -> Tuple[Optional[dict], Optional[dict], Optional[dict], Optional[list]]:
+    """Fetch all core data"""
+    with st.spinner(f"Fetching data for Core #{hid}..."):
+        mini = fetch_api("/cores/mini", {"hid": hid})
+        power = fetch_api("/cores/power", {"hid": hid})
+        stats = fetch_api("/cores/racing_stats", {"hid": hid})
+        races = fetch_api("/i/hraces", {"hid": hid, "limit": 10000})
+    
+    return mini, power, stats, races
 
 # Input section
 st.subheader("Select Cores to Compare")
