@@ -603,12 +603,26 @@ if search_btn or 'open_races' in st.session_state:
                                 'Adj Odds': f"{competitor['adjodds']:.1f}%"
                             })
                         
+                        # Get your core's full power stats
+                        your_core_power = st.session_state.core_data_cache[rec['core_id']].get('power_full')
+                        if not your_core_power:
+                            # Fetch if not cached
+                            your_core_power = fetch_api("/cores/power", {"hid": rec['core_id']})
+                            st.session_state.core_data_cache[rec['core_id']]['power_full'] = your_core_power
+                        
+                        your_power_pct = "-"
+                        your_variance_pct = "-"
+                        if your_core_power:
+                            mode_data = your_core_power.get('power', {}).get(mode, {})
+                            your_power_pct = f"{mode_data.get('power', {}).get('fill', {}).get('per', 0):.1f}%"
+                            your_variance_pct = f"{mode_data.get('variance', {}).get('fill', {}).get('per', 0):.1f}%"
+                        
                         # Add your core in the right position
                         comp_data.append({
                             'Rank': f"#{comp['your_rank']} ⭐",
                             'Core': f"#{rec['core_id']} (YOU)",
-                            'Power': "-",
-                            'Variance': "-",
+                            'Power': your_power_pct,
+                            'Variance': your_variance_pct,
                             'Adj Odds': f"{rec['your_adjodds']:.1f}%"
                         })
                         
