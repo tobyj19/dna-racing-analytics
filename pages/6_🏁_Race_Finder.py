@@ -142,21 +142,20 @@ def check_eligibility(core_stats: dict, mini: dict, entry_filter: dict) -> tuple
     return eligible, reason_text
 
 
-def calculate_race_score(race: dict, core_perf: dict, core_best_distance: int) -> float:
+def calculate_race_score(race: dict, core_perf: dict, core_best_distance: int, competition_strength: float = 50) -> float:
     """Calculate recommendation score for a race"""
     if core_perf['races'] == 0:
         return 0
     
-    # Distance match (40%)
+    # Distance match (35%) - reduced to make room for competition
     distance = race.get('cb', 0)
     if distance == core_best_distance:
         distance_score = 100
     else:
         distance_score = 50
     
-    # Competition level (25%) - less full = better
-    fill_pct = race.get('fillper', 0) * 100
-    competition_score = 100 - fill_pct
+    # Competition strength (30%) - NEW: based on actual competitor analysis
+    competition_score = competition_strength
     
     # Win rate (20%)
     win_rate_score = core_perf['win_rate']
@@ -173,13 +172,90 @@ def calculate_race_score(race: dict, core_perf: dict, core_best_distance: int) -
         roi_score = 0
     
     total_score = (
-        distance_score * 0.40 +
-        competition_score * 0.25 +
+        distance_score * 0.35 +
+        competition_score * 0.30 +
         win_rate_score * 0.20 +
         roi_score * 0.15
     )
     
     return total_score
+
+
+def analyze_competition(race: dict, your_core_id: int, your_adjodds: float, mode: str) -> dict:
+    """Analyze race competition using power stats"""
+    competitor_hids = race.get('hids', [])
+    
+    if not competitor_hids or len(competitor_hids) == 0:
+        return {
+            'strength_score': 100,  # Empty race = great!
+            'competitors': [],
+            'your_rank': 1,
+            'stronger_count': 0,
+            'weaker_count': 0
+        }
+    
+    # Fetch power stats for all competitors
+    competitors_data = fetch_api("/cores/power_bulk", {"hids": competitor_hids})
+    
+    if not competitors_data:
+        # Fallback if API fails
+        return {
+            'strength_score': 50,
+            'competitors': [],
+            'your_rank': None,
+            'stronger_count': 0,
+            'weaker_count': 0
+        }
+    
+    # Extract adjodds for each competitor
+    competitor_stats = []
+    for comp in competitors_data:
+        if comp['hid'] == your_core_id:
+            continue  # Skip your own core
+        
+        mode_data = comp.get('power', {}).get(mode, {})
+        if not mode_data:
+            continue
+        
+        adjodds = mode_data.get('adjodds', {}).get('fill', {}).get('per', 0)
+        power = mode_data.get('power', {}).get('fill', {}).get('per', 0)
+        variance = mode_data.get('variance', {}).get('fill', {}).get('per', 0)
+        
+        competitor_stats.append({
+            'hid': comp['hid'],
+            'adjodds': adjodds,
+            'power': power,
+            'variance': variance
+        })
+    
+    # Sort by adjodds (descending)
+    competitor_stats.sort(key=lambda x: x['adjodds'], reverse=True)
+    
+    # Calculate your rank
+    stronger_count = sum(1 for c in competitor_stats if c['adjodds'] > your_adjodds)
+    weaker_count = len(competitor_stats) - stronger_count
+    your_rank = stronger_count + 1
+    
+    # Calculate competition strength score
+    if stronger_count == 0:
+        strength_score = 100  # No one stronger!
+    elif stronger_count == 1:
+        strength_score = 85   # One stronger
+    elif stronger_count == 2:
+        strength_score = 70   # Two stronger
+    elif stronger_count == 3:
+        strength_score = 55   # Three stronger
+    else:
+        strength_score = 30   # Many stronger - tough field
+    
+    return {
+        'strength_score': strength_score,
+        'competitors': competitor_stats[:5],  # Top 5 only
+        'your_rank': your_rank,
+        'stronger_count': stronger_count,
+        'weaker_count': weaker_count,
+        'total_entries': len(competitor_stats) + 1  # +1 for your core
+    }
 
 
 # Initialize session state for core selection
@@ -377,8 +453,20 @@ if search_btn or 'open_races' in st.session_state:
             if not eligible and not show_ineligible:
                 continue
             
-            # Calculate score
-            score = calculate_race_score(race, core_perf, best_distance)
+            # Get your core's adjodds for competition analysis
+            your_power = core_data['stats'].get(f'hstats_{mode}', {})
+            # We need to get adjodds from power endpoint - let's fetch it
+            your_core_power = fetch_api("/cores/power", {"hid": core_id})
+            your_adjodds = 0
+            if your_core_power:
+                mode_data = your_core_power.get('power', {}).get(mode, {})
+                your_adjodds = mode_data.get('adjodds', {}).get('fill', {}).get('per', 0)
+            
+            # Analyze competition
+            comp_analysis = analyze_competition(race, core_id, your_adjodds, mode)
+            
+            # Calculate score with competition strength
+            score = calculate_race_score(race, core_perf, best_distance, comp_analysis['strength_score'])
             
             # Calculate expected ROI
             prize = race.get('prizeusd', 0)
@@ -401,7 +489,9 @@ if search_btn or 'open_races' in st.session_state:
                 'ineligible_reason': reason,
                 'core_perf': core_perf,
                 'expected_roi': expected_roi,
-                'is_best_distance': distance == best_distance
+                'is_best_distance': distance == best_distance,
+                'competition': comp_analysis,
+                'your_adjodds': your_adjodds
             })
     
     # Sort by score
@@ -456,15 +546,85 @@ if search_btn or 'open_races' in st.session_state:
                 reasons = []
                 if rec['is_best_distance']:
                     reasons.append("✅ Your BEST distance")
-                if race.get('fillper', 1) < 0.5:
-                    reasons.append("✅ Low competition")
+                if rec['competition']['strength_score'] >= 85:
+                    reasons.append("✅ Weak competition")
+                elif rec['competition']['strength_score'] >= 70:
+                    reasons.append("⚠️ Moderate competition")
+                else:
+                    reasons.append("🔴 Strong competition")
                 if race.get('feeusd', 0) == 0:
                     reasons.append("✅ Free entry")
                 if rec['expected_roi'] > 0:
-                    reasons.append("✅ Positive expected ROI")
+                    reasons.append("✅ Positive ROI")
                 
                 if reasons:
                     st.info("**Why:** " + " • ".join(reasons))
+                
+                # Competition Analysis (Clean & Simple)
+                comp = rec['competition']
+                
+                if comp['competitors']:
+                    with st.expander(f"👥 Field Analysis ({comp['total_entries']} entries)", expanded=False):
+                        
+                        # Your position in field
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            rank_color = "🟢" if comp['your_rank'] <= 3 else "🟡" if comp['your_rank'] <= 6 else "🔴"
+                            st.metric("Your Projected Rank", f"{rank_color} #{comp['your_rank']}")
+                        
+                        with col2:
+                            st.metric("Cores Faster", comp['stronger_count'], 
+                                     delta="Tough field" if comp['stronger_count'] > 2 else None,
+                                     delta_color="inverse")
+                        
+                        with col3:
+                            st.metric("Cores Slower", comp['weaker_count'],
+                                     delta="Good position" if comp['weaker_count'] > comp['stronger_count'] else None,
+                                     delta_color="normal")
+                        
+                        st.divider()
+                        
+                        # Top competitors comparison
+                        st.markdown("**Top Competitors:**")
+                        
+                        # Create comparison dataframe
+                        comp_data = []
+                        
+                        # Add competitors
+                        for idx, competitor in enumerate(comp['competitors']):
+                            if idx >= 3:  # Show top 3 competitors only
+                                break
+                            comp_data.append({
+                                'Rank': f"#{idx + 1}",
+                                'Core': f"#{competitor['hid']}",
+                                'Power': f"{competitor['power']:.1f}%",
+                                'Variance': f"{competitor['variance']:.1f}%",
+                                'Adj Odds': f"{competitor['adjodds']:.1f}%"
+                            })
+                        
+                        # Add your core in the right position
+                        comp_data.append({
+                            'Rank': f"#{comp['your_rank']} ⭐",
+                            'Core': f"#{rec['core_id']} (YOU)",
+                            'Power': "-",
+                            'Variance': "-",
+                            'Adj Odds': f"{rec['your_adjodds']:.1f}%"
+                        })
+                        
+                        # Show as clean table
+                        df_comp = pd.DataFrame(comp_data)
+                        st.dataframe(df_comp, hide_index=True, use_container_width=True)
+                        
+                        # Strategic insight
+                        if comp['your_rank'] == 1:
+                            st.success("💪 **You're the favorite!** Highest chance to win.")
+                        elif comp['your_rank'] <= 3:
+                            st.info("🎯 **Strong position.** Podium finish very likely.")
+                        elif comp['your_rank'] <= 6:
+                            st.warning("⚠️ **Mid-pack.** Possible podium with good performance.")
+                        else:
+                            st.error("🔴 **Tough field.** Consider finding a weaker race.")
                 
                 race_url = f"https://dnaracing.run/race/{race.get('rid')}"
                 st.link_button("⚡ Enter This Race", race_url, use_container_width=True)
