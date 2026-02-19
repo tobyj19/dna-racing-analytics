@@ -383,8 +383,14 @@ if search_btn or 'open_races' in st.session_state:
             # Calculate expected ROI
             prize = race.get('prizeusd', 0)
             fee = race.get('feeusd', 0)
-            expected_win = prize * (core_perf['win_rate'] / 100) * (1 / race.get('hs_in', 1))
-            expected_roi = expected_win - fee
+            horses_in = race.get('hs_in', 0)
+            
+            # Avoid division by zero
+            if horses_in > 0:
+                expected_win = prize * (core_perf['win_rate'] / 100) * (1 / horses_in)
+                expected_roi = expected_win - fee
+            else:
+                expected_roi = 0
             
             recommendations.append({
                 'core_id': core_id,
