@@ -122,19 +122,51 @@ def check_eligibility(core_stats: dict, mini: dict, entry_filter: dict) -> tuple
     if entry_filter.get('gender') and mini.get('gender') not in entry_filter['gender']:
         reasons.append(f"Gender: {mini.get('gender')} not allowed")
     
-    # Check race count
+    # Check race count - with safe type handling
     total_races = core_stats.get('career', {}).get('races_n', 0)
-    if entry_filter.get('races_n_mi') and total_races < entry_filter['races_n_mi']:
-        reasons.append(f"Too few races: {total_races} < {entry_filter['races_n_mi']}")
-    if entry_filter.get('races_n_mx') and total_races > entry_filter['races_n_mx']:
-        reasons.append(f"Too many races: {total_races} > {entry_filter['races_n_mx']}")
+    if total_races is None:
+        total_races = 0
     
-    # Check win rate
-    win_rate = core_stats.get('career', {}).get('win_p', 0) * 100
-    if entry_filter.get('win_p_mi') and win_rate < entry_filter['win_p_mi']:
-        reasons.append(f"Win rate too low: {win_rate:.1f}% < {entry_filter['win_p_mi']}%")
-    if entry_filter.get('win_p_mx') and win_rate > entry_filter['win_p_mx']:
-        reasons.append(f"Win rate too high: {win_rate:.1f}% > {entry_filter['win_p_mx']}%")
+    races_n_mi = entry_filter.get('races_n_mi')
+    races_n_mx = entry_filter.get('races_n_mx')
+    
+    if races_n_mi is not None:
+        try:
+            if total_races < int(races_n_mi):
+                reasons.append(f"Too few races: {total_races} < {races_n_mi}")
+        except (ValueError, TypeError):
+            pass
+    
+    if races_n_mx is not None:
+        try:
+            if total_races > int(races_n_mx):
+                reasons.append(f"Too many races: {total_races} > {races_n_mx}")
+        except (ValueError, TypeError):
+            pass
+    
+    # Check win rate - with safe type handling
+    win_rate = core_stats.get('career', {}).get('win_p', 0)
+    if win_rate is None:
+        win_rate = 0
+    else:
+        win_rate = win_rate * 100  # Convert to percentage
+    
+    win_p_mi = entry_filter.get('win_p_mi')
+    win_p_mx = entry_filter.get('win_p_mx')
+    
+    if win_p_mi is not None:
+        try:
+            if win_rate < float(win_p_mi):
+                reasons.append(f"Win rate too low: {win_rate:.1f}% < {win_p_mi}%")
+        except (ValueError, TypeError):
+            pass
+    
+    if win_p_mx is not None:
+        try:
+            if win_rate > float(win_p_mx):
+                reasons.append(f"Win rate too high: {win_rate:.1f}% > {win_p_mx}%")
+        except (ValueError, TypeError):
+            pass
     
     eligible = len(reasons) == 0
     reason_text = "; ".join(reasons) if reasons else ""
