@@ -317,11 +317,12 @@ if 'mini' in st.session_state and 'power' in st.session_state:
             # ====================
             st.subheader("📈 Race History & Charts")
             
-            # DEBUG: Show which distances we're about to chart
-            st.caption(f"Debug: About to chart {len(distance_data)} distances for {mode}")
+            # Show charts for ALL distances (ensure unique)
+            unique_distances = list(set(distance_data.keys()))
+            sorted_chart_distances = sorted(unique_distances, key=lambda x: int(x))
             
-            # Show charts for ALL distances
-            sorted_chart_distances = sorted(distance_data.keys(), key=lambda x: int(x))
+            # DEBUG: Show which distances we're about to chart
+            st.caption(f"Debug: Found {len(unique_distances)} unique distances for {mode}: {sorted_chart_distances}")
             
             if not sorted_chart_distances:
                 st.info("No race data available")
@@ -329,9 +330,6 @@ if 'mini' in st.session_state and 'power' in st.session_state:
             
             for dist_idx, distance in enumerate(sorted_chart_distances):
                 distance = int(distance)
-                
-                # DEBUG: Track each chart
-                st.caption(f"Debug: Rendering chart #{dist_idx+1} for {distance*100}m")
                 
                 positions = distance_data[distance]['positions']
                 times = distance_data[distance]['times']
