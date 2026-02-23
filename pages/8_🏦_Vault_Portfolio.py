@@ -181,47 +181,82 @@ if analyze_btn or st.session_state.get('sample_vault'):
     st.divider()
     
     # Detailed Analysis Toggle
-    analyze_performance = st.checkbox("📈 Load Full Performance Analysis (may take 30-60 seconds)", value=False)
+    st.subheader("📈 Performance Analysis")
     
-    if analyze_performance:
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.markdown("Load detailed performance data for all cores (P&L, win rates, power stats)")
+        st.caption("⚠️ This will fetch data for all cores and may take 30-60 seconds for large vaults")
+    
+    with col2:
+        st.write("")
+        analyze_btn = st.button("📊 Load Analysis", type="primary", use_container_width=True, key="load_analysis")
+    
+    # Check if we should load or if already loaded
+    cache_key = f"vault_perf_{vault_address}"
+    
+    if analyze_btn:
+        st.session_state[cache_key] = None  # Clear cache
+        st.session_state['trigger_analysis'] = True
+    
+    if st.session_state.get('trigger_analysis') or st.session_state.get(cache_key):
         
-        with st.spinner("Fetching detailed performance data for all cores..."):
-            # Fetch data for all regular cores (skip trainers for performance)
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            all_races = []
-            all_power = []
-            all_stats = []
-            
-            total = len(regular_cores)
-            
-            for idx, core in enumerate(regular_cores):
-                hid = core['hid']
+        # Check if we have cached data
+        if st.session_state.get(cache_key):
+            st.success("✓ Using cached performance data")
+            cached_data = st.session_state[cache_key]
+            all_races = cached_data['all_races']
+            all_power = cached_data['all_power']
+            all_stats = cached_data['all_stats']
+        else:
+            # Load fresh data
+            with st.spinner("Fetching detailed performance data for all cores..."):
+                # Fetch data for all regular cores (skip trainers for performance)
+                progress_bar = st.progress(0)
+                status_text = st.empty()
                 
-                status_text.text(f"Loading Core #{hid} ({idx+1}/{total})...")
+                all_races = []
+                all_power = []
+                all_stats = []
                 
-                # Fetch race history
-                races = fetch_api("/i/hraces", {"hid": hid, "limit": 1000})
-                if races:
-                    all_races.extend(races)
+                total = len(regular_cores)
                 
-                # Fetch power stats
-                power = fetch_api("/cores/power", {"hid": hid})
-                if power:
-                    all_power.append({'hid': hid, 'power': power})
+                for idx, core in enumerate(regular_cores):
+                    hid = core['hid']
+                    
+                    status_text.text(f"Loading Core #{hid} ({idx+1}/{total})...")
+                    
+                    # Fetch race history
+                    races = fetch_api("/i/hraces", {"hid": hid, "limit": 1000})
+                    if races:
+                        all_races.extend(races)
+                    
+                    # Fetch power stats
+                    power = fetch_api("/cores/power", {"hid": hid})
+                    if power:
+                        all_power.append({'hid': hid, 'power': power})
+                    
+                    # Fetch racing stats
+                    stats = fetch_api("/cores/racing_stats", {"hid": hid})
+                    if stats:
+                        all_stats.append({'hid': hid, 'stats': stats})
+                    
+                    progress_bar.progress((idx + 1) / total)
                 
-                # Fetch racing stats
-                stats = fetch_api("/cores/racing_stats", {"hid": hid})
-                if stats:
-                    all_stats.append({'hid': hid, 'stats': stats})
+                progress_bar.empty()
+                status_text.empty()
                 
-                progress_bar.progress((idx + 1) / total)
-            
-            progress_bar.empty()
-            status_text.empty()
-            
-            st.success("✓ Performance data loaded!")
+                # Cache the results
+                st.session_state[cache_key] = {
+                    'all_races': all_races,
+                    'all_power': all_power,
+                    'all_stats': all_stats
+                }
+                
+                st.session_state['trigger_analysis'] = False
+                
+                st.success("✓ Performance data loaded!")
         
         st.divider()
         
@@ -387,7 +422,7 @@ if analyze_btn or st.session_state.get('sample_vault'):
                 st.write(f"Core #{hid}: {perf['win_rate']:.1f}% win rate ({perf['races']} races)")
     
     else:
-        st.info("👆 Check the box above to load full performance analysis")
+        st.info("👆 Click '📊 Load Analysis' button above to view detailed performance data")
     
     st.divider()
     
