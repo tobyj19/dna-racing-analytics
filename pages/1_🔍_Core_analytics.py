@@ -313,14 +313,18 @@ if 'mini' in st.session_state and 'power' in st.session_state:
             st.divider()
             
             # ====================
-            # RACE HISTORY CHARTS
+            # RACE HISTORY CHARTS (All distances)
             # ====================
-            st.subheader("📈 Race History")
+            st.subheader("📈 Race History & Charts")
             
-            # Group by distance
-            sorted_distances = sorted(distance_data.keys(), key=lambda x: int(x))
+            # Show charts for ALL distances
+            sorted_chart_distances = sorted(distance_data.keys(), key=lambda x: int(x))
             
-            for dist_idx, distance in enumerate(sorted_distances):
+            if not sorted_chart_distances:
+                st.info("No race data available")
+                continue
+            
+            for dist_idx, distance in enumerate(sorted_chart_distances):
                 distance = int(distance)
                 positions = distance_data[distance]['positions']
                 times = distance_data[distance]['times']
@@ -353,6 +357,7 @@ if 'mini' in st.session_state and 'power' in st.session_state:
                                      for i in position_counts.keys()],
                         text=list(position_counts.values()),
                         textposition='auto',
+                        hovertemplate='Position %{x}<br>Finishes: %{y}<extra></extra>'
                     )
                 ])
                 
@@ -377,6 +382,7 @@ if 'mini' in st.session_state and 'power' in st.session_state:
                     
                     fig_timing = go.Figure()
                     
+                    # Horizontal line
                     fig_timing.add_trace(go.Scatter(
                         x=[fastest, slowest],
                         y=[0, 0],
@@ -386,6 +392,7 @@ if 'mini' in st.session_state and 'power' in st.session_state:
                         hoverinfo='skip'
                     ))
                     
+                    # Points - using circles with proper hover
                     points = [
                         (fastest, 'Fastest', '#4ec9b0'),
                         (average, 'Average', '#dcdcaa'),
@@ -400,10 +407,15 @@ if 'mini' in st.session_state and 'power' in st.session_state:
                             x=[time],
                             y=[0],
                             mode='markers',
-                            marker=dict(size=15, color=color),
+                            marker=dict(
+                                size=20,
+                                color=color,
+                                symbol='circle',
+                                line=dict(width=2, color='white')
+                            ),
                             name=label,
-                            text=f"{label}: {time:.2f}s",
-                            hovertemplate='%{text}<extra></extra>'
+                            hovertext=f"{label}<br>{time:.2f}s",
+                            hoverinfo='text'
                         ))
                     
                     fig_timing.update_layout(
