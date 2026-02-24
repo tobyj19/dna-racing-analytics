@@ -153,6 +153,23 @@ if 'mini' in st.session_state and 'power' in st.session_state:
     # Power Stats
     st.subheader("⚡ Power Statistics")
     
+    # Color gradient function
+    def get_gradient_color(percentage):
+        """Calculate color: blue (0%) → green (50%) → red (100%)"""
+        if percentage <= 50:
+            # Blue to Green (0-50%)
+            ratio = percentage / 50
+            r = 0
+            g = int(255 * ratio)
+            b = int(255 * (1 - ratio))
+        else:
+            # Green to Red (50-100%)
+            ratio = (percentage - 50) / 50
+            r = int(255 * ratio)
+            g = int(255 * (1 - ratio))
+            b = 0
+        return f"#{r:02x}{g:02x}{b:02x}"
+    
     mode_cols = st.columns(3)
     
     for idx, mode in enumerate(['bike', 'car', 'horse']):
@@ -164,16 +181,19 @@ if 'mini' in st.session_state and 'power' in st.session_state:
             mode_data = power['power'][mode]
             
             power_pct = mode_data['power']['fill']['per']
+            power_color = get_gradient_color(power_pct)
             st.markdown(f"**Power:** {power_pct:.1f}%")
-            st.progress(power_pct / 100)
+            st.markdown(f'<div style="background:{power_color};height:25px;border-radius:5px;"></div>', unsafe_allow_html=True)
             
             var_pct = mode_data['variance']['fill']['per']
+            var_color = get_gradient_color(var_pct)
             st.markdown(f"**Variance:** {var_pct:.1f}%")
-            st.progress(var_pct / 100)
+            st.markdown(f'<div style="background:{var_color};height:25px;border-radius:5px;"></div>', unsafe_allow_html=True)
             
             odds_pct = mode_data['adjodds']['fill']['per']
+            odds_color = get_gradient_color(odds_pct)
             st.markdown(f"**Adj Odds:** {odds_pct:.1f}%")
-            st.progress(odds_pct / 100)
+            st.markdown(f'<div style="background:{odds_color};height:25px;border-radius:5px;"></div>', unsafe_allow_html=True)
     
     st.divider()
     
@@ -545,25 +565,39 @@ if 'mini' in st.session_state and 'power' in st.session_state:
                                 
                                 st.write("")  # Spacer
                                 
-                                # Power stats
+                                # Power stats with color-coded bars (Blue → Green → Red)
                                 st.markdown("**Power Stats:**")
-                                p1, p2 = st.columns(2)
-                                with p1:
-                                    st.caption("PWR")
-                                with p2:
-                                    st.caption(f"**{power_pct:.1f}%**")
                                 
-                                p1, p2 = st.columns(2)
-                                with p1:
-                                    st.caption("VAR")
-                                with p2:
-                                    st.caption(f"**{var_pct:.1f}%**")
+                                def get_gradient_color(percentage):
+                                    """Calculate color: blue (0%) → green (50%) → red (100%)"""
+                                    if percentage <= 50:
+                                        # Blue to Green (0-50%)
+                                        ratio = percentage / 50
+                                        r = 0
+                                        g = int(255 * ratio)
+                                        b = int(255 * (1 - ratio))
+                                    else:
+                                        # Green to Red (50-100%)
+                                        ratio = (percentage - 50) / 50
+                                        r = int(255 * ratio)
+                                        g = int(255 * (1 - ratio))
+                                        b = 0
+                                    return f"#{r:02x}{g:02x}{b:02x}"
                                 
-                                p1, p2 = st.columns(2)
-                                with p1:
-                                    st.caption("ADJ")
-                                with p2:
-                                    st.caption(f"**{adj_pct:.1f}%**")
+                                # Power bar
+                                st.caption("PWR")
+                                power_color = get_gradient_color(power_pct)
+                                st.markdown(f'<div style="background:{power_color};height:20px;border-radius:4px;text-align:center;line-height:20px;color:white;font-weight:bold;font-size:0.75em;">{power_pct:.1f}%</div>', unsafe_allow_html=True)
+                                
+                                # Variance bar
+                                st.caption("VAR")
+                                var_color = get_gradient_color(var_pct)
+                                st.markdown(f'<div style="background:{var_color};height:20px;border-radius:4px;text-align:center;line-height:20px;color:white;font-weight:bold;font-size:0.75em;">{var_pct:.1f}%</div>', unsafe_allow_html=True)
+                                
+                                # Adj Odds bar
+                                st.caption("ADJ")
+                                adj_color = get_gradient_color(adj_pct)
+                                st.markdown(f'<div style="background:{adj_color};height:20px;border-radius:4px;text-align:center;line-height:20px;color:white;font-weight:bold;font-size:0.75em;">{adj_pct:.1f}%</div>', unsafe_allow_html=True)
                                 
                                 st.write("")  # Spacer
                                 
