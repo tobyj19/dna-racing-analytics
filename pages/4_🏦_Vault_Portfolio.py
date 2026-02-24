@@ -155,34 +155,42 @@ if 'vault_cores' in st.session_state:
         # ==================
         st.subheader("🔍 Filters")
         
-        filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
+        # Get unique values from actual vault data
+        unique_elements = sorted(list(set([c.get('element', 'unknown') for c in cores if c.get('element')])))
+        unique_types = sorted(list(set([c.get('type', 'unknown') for c in cores if c.get('type')])))
+        unique_genders = sorted(list(set([c.get('gender', 'unknown') for c in cores if c.get('gender')])))
+        
+        # Show debug info
+        with st.expander("🔍 Available filter values in this vault", expanded=False):
+            st.write(f"**Elements:** {', '.join(unique_elements)}")
+            st.write(f"**Types:** {', '.join(unique_types)}")
+            st.write(f"**Genders:** {', '.join(unique_genders)}")
+            st.caption("Filters show only values that exist in this vault")
+        
+        filter_col1, filter_col2, filter_col3 = st.columns(3)
         
         with filter_col1:
             element_filter = st.multiselect(
                 "Element",
-                options=['water', 'fire', 'earth', 'air'],
-                default=[]
+                options=unique_elements,
+                default=[],
+                help=f"Filter by element ({len(unique_elements)} found)"
             )
         
         with filter_col2:
             type_filter = st.multiselect(
                 "Type",
-                options=['genesis', 'spliced'],
-                default=[]
+                options=unique_types,
+                default=[],
+                help=f"Filter by type ({len(unique_types)} found)"
             )
         
         with filter_col3:
             gender_filter = st.multiselect(
                 "Gender",
-                options=['male', 'female'],
-                default=[]
-            )
-        
-        with filter_col4:
-            fno_filter = st.multiselect(
-                "Family (F.No)",
-                options=sorted(list(set([c.get('fno', 0) for c in cores]))),
-                default=[]
+                options=unique_genders,
+                default=[],
+                help=f"Filter by gender ({len(unique_genders)} found)"
             )
         
         # Apply filters
@@ -196,9 +204,6 @@ if 'vault_cores' in st.session_state:
         
         if gender_filter:
             filtered_cores = [c for c in filtered_cores if c.get('gender') in gender_filter]
-        
-        if fno_filter:
-            filtered_cores = [c for c in filtered_cores if c.get('fno') in fno_filter]
         
         st.info(f"Showing {len(filtered_cores)} of {len(cores)} cores")
         
