@@ -605,7 +605,7 @@ if 'mini' in st.session_state and 'power' in st.session_state:
                                 st.caption(f"{offspring.get('gender', '?').title()} • {offspring.get('color', 'Unknown').replace('-', ' ').title()}")
                                 
                                 # Link button
-                                core_url = f"https://dnaracing.run/core/{offspring['hid']}"
+                                core_url = f"https://fbike.dnaracing.run/core/{offspring['hid']}"
                                 st.link_button("View on DNA Racing", core_url, use_container_width=True)
             else:
                 # Fallback to simple button grid
