@@ -502,11 +502,15 @@ if 'mini' in st.session_state and 'power' in st.session_state:
         if life_splices_list:
             st.subheader(f"👶 Offspring ({len(life_splices_list)} cores)")
             
-            # Fetch mini data for all offspring
+            # Fetch mini data and power data for all offspring
             with st.spinner("Loading offspring details..."):
                 offspring_data = fetch_api("/cores/mini_bulk", {"hids": life_splices_list})
+                offspring_power = fetch_api("/cores/power_bulk", {"hids": life_splices_list})
             
-            if offspring_data:
+            if offspring_data and offspring_power:
+                # Create power lookup
+                power_lookup = {p['hid']: p for p in offspring_power}
+                
                 # Display in card grid
                 cols_per_row = 4
                 
@@ -516,28 +520,58 @@ if 'mini' in st.session_state and 'power' in st.session_state:
                     
                     for col_idx, offspring in enumerate(row_offspring):
                         with cols[col_idx]:
-                            # Card using native Streamlit components
-                            with st.container():
-                                st.markdown(f"**{offspring.get('name', 'Unnamed')}**")
-                                st.caption(f"#{offspring['hid']}")
+                            # Get power data
+                            power_data = power_lookup.get(offspring['hid'], {})
+                            mode_power = power_data.get('power', {}).get('bike', {})  # Default to bike
+                            
+                            power_pct = mode_power.get('power', {}).get('fill', {}).get('per', 0)
+                            var_pct = mode_power.get('variance', {}).get('fill', {}).get('per', 0)
+                            adj_pct = mode_power.get('adjodds', {}).get('fill', {}).get('per', 0)
+                            
+                            # Card with box
+                            st.markdown(f"""
+                            <div style="
+                                border: 2px solid #ddd;
+                                border-radius: 8px;
+                                padding: 12px;
+                                margin-bottom: 10px;
+                                background: #f9fafb;
+                            ">
+                                <div style="text-align: center; margin-bottom: 8px;">
+                                    <strong style="font-size: 1.1em;">{offspring.get('name', 'Unnamed')}</strong><br>
+                                    <span style="color: #666; font-size: 0.85em;">#{offspring['hid']}</span>
+                                </div>
                                 
-                                # Badges
-                                badge_col1, badge_col2, badge_col3 = st.columns(3)
-                                with badge_col1:
-                                    st.markdown(f"<span style='background:#667eea;color:white;padding:2px 6px;border-radius:3px;font-size:0.75em;'>{offspring.get('type', '?').upper()[:3]}</span>", unsafe_allow_html=True)
-                                with badge_col2:
-                                    st.markdown(f"<span style='background:#764ba2;color:white;padding:2px 6px;border-radius:3px;font-size:0.75em;'>{offspring.get('element', '?').upper()[:3]}</span>", unsafe_allow_html=True)
-                                with badge_col3:
-                                    st.markdown(f"<span style='background:#f59e0b;color:white;padding:2px 6px;border-radius:3px;font-size:0.75em;'>F{offspring.get('fno', '?')}</span>", unsafe_allow_html=True)
+                                <div style="text-align: center; margin: 8px 0;">
+                                    <span style="background:#667eea;color:white;padding:3px 8px;border-radius:4px;font-size:0.75em;margin:2px;display:inline-block;">{offspring.get('type', '?').upper()[:3]}</span>
+                                    <span style="background:#764ba2;color:white;padding:3px 8px;border-radius:4px;font-size:0.75em;margin:2px;display:inline-block;">{offspring.get('element', '?').upper()[:3]}</span>
+                                    <span style="background:#f59e0b;color:white;padding:3px 8px;border-radius:4px;font-size:0.75em;margin:2px;display:inline-block;">F{offspring.get('fno', '?')}</span>
+                                </div>
                                 
-                                st.caption(f"{offspring.get('gender', 'Unknown').title()} • {offspring.get('color', 'Unknown').replace('-', ' ').title()}")
+                                <div style="margin: 10px 0; padding: 8px; background: white; border-radius: 5px;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                                        <span style="font-size: 0.75em; color: #666;">PWR</span>
+                                        <span style="font-size: 0.75em; font-weight: bold;">{power_pct:.1f}%</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                                        <span style="font-size: 0.75em; color: #666;">VAR</span>
+                                        <span style="font-size: 0.75em; font-weight: bold;">{var_pct:.1f}%</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span style="font-size: 0.75em; color: #666;">ADJ</span>
+                                        <span style="font-size: 0.75em; font-weight: bold;">{adj_pct:.1f}%</span>
+                                    </div>
+                                </div>
                                 
-                                # View button
-                                if st.button("View", key=f"view_offspring_{offspring['hid']}", use_container_width=True):
-                                    st.session_state.current_core_id = offspring['hid']
-                                    st.rerun()
-                                
-                                st.divider()
+                                <div style="text-align: center; color: #666; font-size: 0.8em;">
+                                    {offspring.get('gender', '?').title()} • {offspring.get('color', 'Unknown').replace('-', ' ').title()}
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Link to DNA Racing website
+                            core_url = f"https://dnaracing.run/core/{offspring['hid']}"
+                            st.link_button("View on DNA Racing", core_url, use_container_width=True)
             else:
                 # Fallback to simple button grid
                 st.info("Could not load offspring details")
