@@ -308,6 +308,9 @@ if 'vault_cores' in st.session_state:
             st.warning("Load a vault first to see breeding suggestions")
             st.stop()
         
+        # IMPORTANT: Use ALL cores for breeding, not filtered_cores
+        st.info(f"Analyzing all {len(cores)} cores in vault (filters don't apply to breeding)")
+        
         # Fetch breeding info for all cores
         with st.spinner("Analyzing vault for breeding opportunities..."):
             hids = [c['hid'] for c in cores]
