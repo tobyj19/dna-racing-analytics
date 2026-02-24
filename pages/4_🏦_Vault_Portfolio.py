@@ -52,14 +52,19 @@ def get_gradient_color(percentage):
 def categorize_core_by_distance(stats_data: dict, mode: str) -> set:
     """Determine which distance categories a core excels in"""
     categories = set()
-    mode_stats = stats_data.get(mode, {})
+    mode_field = f"hstats_{mode}"  # Correct field name: hstats_bike, hstats_car, hstats_horse
+    mode_stats = stats_data.get(mode_field, {})
     
     # Check each distance for >28% win rate
     for cb_str, cb_data in mode_stats.items():
+        if cb_str == 'career':  # Skip career summary
+            continue
+            
         try:
             cb = int(cb_str)
-            win_rate = cb_data.get('win_rate', 0)
-            races = cb_data.get('n', 0)
+            win_p = cb_data.get('win_p', 0)  # API returns decimal (0.28 = 28%)
+            win_rate = win_p * 100  # Convert to percentage
+            races = cb_data.get('races_n', 0)  # races_n not 'n'
             
             # Must have >28% win rate and at least 20 races
             if win_rate > 28 and races >= 20:
@@ -337,7 +342,8 @@ if 'vault_cores' in st.session_state:
                 
                 for core in filtered_cores:
                     stats = st.session_state.stats_lookup.get(core['hid'], {})
-                    mode_stats = stats.get(mode_select, {})
+                    mode_field = f"hstats_{mode_select}"  # hstats_bike, hstats_car, hstats_horse
+                    mode_stats = stats.get(mode_field, {})
                     
                     row = {
                         'HID': core['hid'],
@@ -353,8 +359,9 @@ if 'vault_cores' in st.session_state:
                             continue
                         
                         cb_stats = mode_stats.get(str(cb), {})
-                        races = cb_stats.get('n', 0)
-                        win_rate = cb_stats.get('win_rate', 0)
+                        races = cb_stats.get('races_n', 0)  # races_n not 'n'
+                        win_p = cb_stats.get('win_p', 0)  # win_p is decimal
+                        win_rate = win_p * 100  # Convert to percentage
                         
                         row[f'{cb*100}m'] = f"{races}-{win_rate:.1f}%" if races > 0 else "-"
                     
