@@ -15,14 +15,14 @@ MID_RANGE = list(range(14, 19))        # 1400m-1800m (CB 14-18)
 MARATHON_RANGE = list(range(19, 24))   # 1900m-2300m (CB 19-23)
 
 # Helper functions
-def fetch_api(endpoint: str, data: dict) -> Optional[dict]:
+def fetch_api(endpoint: str, data: dict, timeout: int = 60) -> Optional[dict]:
     """Fetch data from DNA Racing API"""
     try:
         response = requests.post(
             f"{API_BASE_URL}{endpoint}",
             json=data,
             headers={"Content-Type": "application/json"},
-            timeout=30
+            timeout=timeout
         )
         response.raise_for_status()
         result = response.json()
@@ -407,6 +407,13 @@ if 'vault_cores' in st.session_state:
         
         # Build core info with categories
         available_cores = []
+        categorization_debug = {
+            'sprint': 0,
+            'mid': 0,
+            'marathon': 0,
+            'unproven': 0,
+            'total_checked': 0
+        }
         
         for core in cores:
             breeding_info = breeding_lookup.get(core['hid'])
@@ -426,6 +433,16 @@ if 'vault_cores' in st.session_state:
             stats = stats_lookup.get(core['hid'], {})
             categories = categorize_core_by_distance(stats, 'bike')
             
+            categorization_debug['total_checked'] += 1
+            if 'sprint' in categories:
+                categorization_debug['sprint'] += 1
+            if 'mid' in categories:
+                categorization_debug['mid'] += 1
+            if 'marathon' in categories:
+                categorization_debug['marathon'] += 1
+            if not categories:
+                categorization_debug['unproven'] += 1
+            
             core_info = {
                 'hid': core['hid'],
                 'name': core.get('name', 'Unnamed'),
@@ -440,6 +457,17 @@ if 'vault_cores' in st.session_state:
                 'adjodds': mode_data.get('adjodds', {}).get('fill', {}).get('per', 0),
             }
             available_cores.append(core_info)
+        
+        # Show debug info
+        with st.expander("🔍 Distance Categorization Debug", expanded=True):
+            st.write(f"**Total cores analyzed:** {categorization_debug['total_checked']}")
+            st.write(f"**Sprint specialists:** {categorization_debug['sprint']} cores (>28% win rate at 900-1300m with 20+ races)")
+            st.write(f"**Mid specialists:** {categorization_debug['mid']} cores (>28% win rate at 1400-1800m with 20+ races)")
+            st.write(f"**Marathon specialists:** {categorization_debug['marathon']} cores (>28% win rate at 1900-2300m with 20+ races)")
+            st.write(f"**Unproven/Unknown:** {categorization_debug['unproven']} cores (don't meet criteria)")
+            
+            if categorization_debug['unproven'] > categorization_debug['total_checked'] * 0.8:
+                st.warning("⚠️ Most cores are unproven. This could mean: (1) Not enough races yet, (2) Win rates below 28%, or (3) Racing stats didn't load. Try loading racing stats in Vault Overview tab first.")
         
         males = [c for c in available_cores if c['gender'] == 'male']
         females = [c for c in available_cores if c['gender'] == 'female']
