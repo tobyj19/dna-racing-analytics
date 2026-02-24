@@ -511,7 +511,7 @@ if 'mini' in st.session_state and 'power' in st.session_state:
                 # Create power lookup
                 power_lookup = {p['hid']: p for p in offspring_power}
                 
-                # Display in card grid
+                # Display in card grid - 4 per row
                 cols_per_row = 4
                 
                 for i in range(0, len(offspring_data), cols_per_row):
@@ -522,56 +522,57 @@ if 'mini' in st.session_state and 'power' in st.session_state:
                         with cols[col_idx]:
                             # Get power data
                             power_data = power_lookup.get(offspring['hid'], {})
-                            mode_power = power_data.get('power', {}).get('bike', {})  # Default to bike
+                            mode_power = power_data.get('power', {}).get('bike', {})
                             
                             power_pct = mode_power.get('power', {}).get('fill', {}).get('per', 0)
                             var_pct = mode_power.get('variance', {}).get('fill', {}).get('per', 0)
                             adj_pct = mode_power.get('adjodds', {}).get('fill', {}).get('per', 0)
                             
-                            # Card with box
-                            st.markdown(f"""
-                            <div style="
-                                border: 2px solid #ddd;
-                                border-radius: 8px;
-                                padding: 12px;
-                                margin-bottom: 10px;
-                                background: #f9fafb;
-                            ">
-                                <div style="text-align: center; margin-bottom: 8px;">
-                                    <strong style="font-size: 1.1em;">{offspring.get('name', 'Unnamed')}</strong><br>
-                                    <span style="color: #666; font-size: 0.85em;">#{offspring['hid']}</span>
-                                </div>
+                            # Card with container border
+                            with st.container(border=True):
+                                # Name and ID
+                                st.markdown(f"**{offspring.get('name', 'Unnamed')}**")
+                                st.caption(f"#{offspring['hid']}")
                                 
-                                <div style="text-align: center; margin: 8px 0;">
-                                    <span style="background:#667eea;color:white;padding:3px 8px;border-radius:4px;font-size:0.75em;margin:2px;display:inline-block;">{offspring.get('type', '?').upper()[:3]}</span>
-                                    <span style="background:#764ba2;color:white;padding:3px 8px;border-radius:4px;font-size:0.75em;margin:2px;display:inline-block;">{offspring.get('element', '?').upper()[:3]}</span>
-                                    <span style="background:#f59e0b;color:white;padding:3px 8px;border-radius:4px;font-size:0.75em;margin:2px;display:inline-block;">F{offspring.get('fno', '?')}</span>
-                                </div>
+                                # Badges in columns
+                                b1, b2, b3 = st.columns(3)
+                                with b1:
+                                    st.markdown(f'<span style="background:#667eea;color:white;padding:3px 6px;border-radius:4px;font-size:0.7em;display:inline-block;">{offspring.get("type", "?").upper()[:3]}</span>', unsafe_allow_html=True)
+                                with b2:
+                                    st.markdown(f'<span style="background:#764ba2;color:white;padding:3px 6px;border-radius:4px;font-size:0.7em;display:inline-block;">{offspring.get("element", "?").upper()[:3]}</span>', unsafe_allow_html=True)
+                                with b3:
+                                    st.markdown(f'<span style="background:#f59e0b;color:white;padding:3px 6px;border-radius:4px;font-size:0.7em;display:inline-block;">F{offspring.get("fno", "?")}</span>', unsafe_allow_html=True)
                                 
-                                <div style="margin: 10px 0; padding: 8px; background: white; border-radius: 5px;">
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
-                                        <span style="font-size: 0.75em; color: #666;">PWR</span>
-                                        <span style="font-size: 0.75em; font-weight: bold;">{power_pct:.1f}%</span>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
-                                        <span style="font-size: 0.75em; color: #666;">VAR</span>
-                                        <span style="font-size: 0.75em; font-weight: bold;">{var_pct:.1f}%</span>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between;">
-                                        <span style="font-size: 0.75em; color: #666;">ADJ</span>
-                                        <span style="font-size: 0.75em; font-weight: bold;">{adj_pct:.1f}%</span>
-                                    </div>
-                                </div>
+                                st.write("")  # Spacer
                                 
-                                <div style="text-align: center; color: #666; font-size: 0.8em;">
-                                    {offspring.get('gender', '?').title()} • {offspring.get('color', 'Unknown').replace('-', ' ').title()}
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            # Link to DNA Racing website
-                            core_url = f"https://dnaracing.run/core/{offspring['hid']}"
-                            st.link_button("View on DNA Racing", core_url, use_container_width=True)
+                                # Power stats
+                                st.markdown("**Power Stats:**")
+                                p1, p2 = st.columns(2)
+                                with p1:
+                                    st.caption("PWR")
+                                with p2:
+                                    st.caption(f"**{power_pct:.1f}%**")
+                                
+                                p1, p2 = st.columns(2)
+                                with p1:
+                                    st.caption("VAR")
+                                with p2:
+                                    st.caption(f"**{var_pct:.1f}%**")
+                                
+                                p1, p2 = st.columns(2)
+                                with p1:
+                                    st.caption("ADJ")
+                                with p2:
+                                    st.caption(f"**{adj_pct:.1f}%**")
+                                
+                                st.write("")  # Spacer
+                                
+                                # Gender and color
+                                st.caption(f"{offspring.get('gender', '?').title()} • {offspring.get('color', 'Unknown').replace('-', ' ').title()}")
+                                
+                                # Link button
+                                core_url = f"https://dnaracing.run/core/{offspring['hid']}"
+                                st.link_button("View on DNA Racing", core_url, use_container_width=True)
             else:
                 # Fallback to simple button grid
                 st.info("Could not load offspring details")
