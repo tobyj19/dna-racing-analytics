@@ -500,7 +500,88 @@ if 'mini' in st.session_state and 'power' in st.session_state:
         life_splices_list = splice_core.get('life_splices', [])
         
         if life_splices_list:
-            with st.expander(f"👶 View Offspring ({len(life_splices_list)} cores)"):
+            st.subheader(f"👶 Offspring ({len(life_splices_list)} cores)")
+            
+            # Fetch mini data for all offspring
+            with st.spinner("Loading offspring details..."):
+                offspring_data = fetch_api("/cores/mini_bulk", {"hids": life_splices_list})
+            
+            if offspring_data:
+                # Display in card grid
+                cols_per_row = 4
+                
+                for i in range(0, len(offspring_data), cols_per_row):
+                    cols = st.columns(cols_per_row)
+                    row_offspring = offspring_data[i:i+cols_per_row]
+                    
+                    for col_idx, offspring in enumerate(row_offspring):
+                        with cols[col_idx]:
+                            # Card container
+                            with st.container():
+                                st.markdown(f"""
+                                <div style="
+                                    border: 2px solid #667eea;
+                                    border-radius: 10px;
+                                    padding: 15px;
+                                    background: linear-gradient(135deg, #667eea22 0%, #764ba222 100%);
+                                    margin-bottom: 10px;
+                                ">
+                                    <div style="text-align: center;">
+                                        <h4 style="margin: 0 0 5px 0; color: #667eea;">
+                                            {offspring.get('name', 'Unnamed')}
+                                        </h4>
+                                        <p style="margin: 0; font-size: 0.9em; color: #888;">
+                                            #{offspring['hid']}
+                                        </p>
+                                    </div>
+                                    
+                                    <div style="margin: 10px 0; text-align: center;">
+                                        <span style="
+                                            display: inline-block;
+                                            padding: 3px 8px;
+                                            background: #667eea;
+                                            color: white;
+                                            border-radius: 5px;
+                                            font-size: 0.85em;
+                                            margin: 2px;
+                                        ">{offspring.get('type', 'Unknown').upper()}</span>
+                                        
+                                        <span style="
+                                            display: inline-block;
+                                            padding: 3px 8px;
+                                            background: #764ba2;
+                                            color: white;
+                                            border-radius: 5px;
+                                            font-size: 0.85em;
+                                            margin: 2px;
+                                        ">{offspring.get('element', 'Unknown').upper()}</span>
+                                        
+                                        <span style="
+                                            display: inline-block;
+                                            padding: 3px 8px;
+                                            background: #f59e0b;
+                                            color: white;
+                                            border-radius: 5px;
+                                            font-size: 0.85em;
+                                            margin: 2px;
+                                        ">F{offspring.get('fno', '?')}</span>
+                                    </div>
+                                    
+                                    <div style="text-align: center; margin-top: 10px;">
+                                        <p style="margin: 0; font-size: 0.85em; color: #666;">
+                                            {offspring.get('gender', 'Unknown').title()} • {offspring.get('color', 'Unknown').replace('-', ' ').title()}
+                                        </p>
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                # Clickable button to view this core
+                                if st.button(f"View Details", key=f"view_offspring_{offspring['hid']}", use_container_width=True):
+                                    st.session_state.current_core_id = offspring['hid']
+                                    st.rerun()
+            else:
+                # Fallback to simple button grid
+                st.info("Could not load offspring details")
                 cols_per_row = 10
                 rows = [life_splices_list[i:i+cols_per_row] for i in range(0, len(life_splices_list), cols_per_row)]
                 
@@ -508,7 +589,9 @@ if 'mini' in st.session_state and 'power' in st.session_state:
                     cols = st.columns(cols_per_row)
                     for idx, offspring_id in enumerate(row):
                         with cols[idx]:
-                            st.button(f"#{offspring_id}", key=f"offspring_{offspring_id}")
+                            if st.button(f"#{offspring_id}", key=f"offspring_{offspring_id}"):
+                                st.session_state.current_core_id = offspring_id
+                                st.rerun()
     
     # Owner info at bottom
     st.divider()
