@@ -217,7 +217,7 @@ if 'mini' in st.session_state and 'power' in st.session_state:
             # Calculate best distance
             distance_data = {}
             for race in mode_races:
-                cb = race['cb']
+                cb = int(race['cb'])  # Force to integer
                 if cb not in distance_data:
                     distance_data[cb] = {'positions': [], 'times': []}
                 distance_data[cb]['positions'].append(race['pos'])
@@ -317,20 +317,14 @@ if 'mini' in st.session_state and 'power' in st.session_state:
             # ====================
             st.subheader("📈 Race History & Charts")
             
-            # Show charts for ALL distances (ensure unique)
-            unique_distances = list(set(distance_data.keys()))
-            sorted_chart_distances = sorted(unique_distances, key=lambda x: int(x))
-            
-            # DEBUG: Show which distances we're about to chart
-            st.caption(f"Debug: Found {len(unique_distances)} unique distances for {mode}: {sorted_chart_distances}")
+            # Sort distances
+            sorted_chart_distances = sorted(distance_data.keys())
             
             if not sorted_chart_distances:
                 st.info("No race data available")
                 continue
             
             for dist_idx, distance in enumerate(sorted_chart_distances):
-                distance = int(distance)
-                
                 positions = distance_data[distance]['positions']
                 times = distance_data[distance]['times']
                 
