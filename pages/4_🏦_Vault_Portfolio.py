@@ -209,8 +209,18 @@ if 'vault_cores' in st.session_state:
         # ==================
         st.subheader(f"🎯 Cores ({len(filtered_cores)})")
         
-        # Load power data button
-        load_power = st.checkbox("Load Power Stats (may take 30-60s for large vaults)")
+        # Mode selector and power data loader
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:
+            mode_select = st.selectbox(
+                "Mode for Power Stats",
+                ["bike", "car", "horse"],
+                index=0
+            )
+        
+        with col2:
+            load_power = st.checkbox("Load Power Stats (may take 30-60s for large vaults)")
         
         if load_power and filtered_cores:
             with st.spinner("Loading power data..."):
@@ -220,7 +230,12 @@ if 'vault_cores' in st.session_state:
                 if power_data:
                     power_lookup = {p['hid']: p for p in power_data}
                     st.session_state.power_lookup = power_lookup
-                    st.success("✓ Power data loaded")
+                    st.session_state.selected_mode = mode_select
+                    st.success(f"✓ Power data loaded for {mode_select.upper()}")
+        
+        # Update mode if changed
+        if 'power_lookup' in st.session_state:
+            st.session_state.selected_mode = mode_select
         
         # Display cores in grid (4 per row)
         cols_per_row = 4
@@ -248,13 +263,17 @@ if 'vault_cores' in st.session_state:
                         # Power stats if loaded
                         if load_power and 'power_lookup' in st.session_state:
                             power = st.session_state.power_lookup.get(core['hid'])
+                            current_mode = st.session_state.get('selected_mode', 'bike')
+                            
                             if power:
-                                mode_data = power.get('power', {}).get('bike', {})
+                                mode_data = power.get('power', {}).get(current_mode, {})
                                 pwr = mode_data.get('power', {}).get('fill', {}).get('per', 0)
                                 var = mode_data.get('variance', {}).get('fill', {}).get('per', 0)
                                 adj = mode_data.get('adjodds', {}).get('fill', {}).get('per', 0)
                                 
                                 st.write("")
+                                st.caption(f"{current_mode.upper()} Stats:")
+                                
                                 st.caption("PWR")
                                 pwr_color = get_gradient_color(pwr)
                                 st.markdown(f'<div style="background:{pwr_color};height:18px;border-radius:3px;text-align:center;line-height:18px;color:white;font-weight:bold;font-size:0.7em;">{pwr:.1f}%</div>', unsafe_allow_html=True)
