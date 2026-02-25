@@ -48,10 +48,13 @@ if st.button("🔍 Analyze Star Values", type="primary"):
             # Display summary
             st.subheader("📊 Star Value Distribution")
             
-            col1, col2, col3, col4, col5 = st.columns(5)
+            # Convert star values to strings for consistent sorting
+            star_groups_sorted = {str(k): v for k, v in star_groups.items()}
             
-            for idx, (star_val, race_list) in enumerate(sorted(star_groups.items())):
-                with [col1, col2, col3, col4, col5][idx % 5]:
+            cols = st.columns(min(5, len(star_groups_sorted)))
+            
+            for idx, (star_val, race_list) in enumerate(sorted(star_groups_sorted.items())):
+                with cols[idx % 5]:
                     st.metric(f"Star {star_val}", len(race_list))
             
             st.divider()
@@ -59,11 +62,11 @@ if st.button("🔍 Analyze Star Values", type="primary"):
             # Show example race for each star value
             st.subheader("🎯 Example Races for Each Star Value")
             
-            for star_val in sorted(star_groups.keys()):
-                with st.expander(f"⭐ Star Value: {star_val} ({len(star_groups[star_val])} races)", expanded=True):
+            for star_val in sorted(star_groups_sorted.keys()):
+                with st.expander(f"⭐ Star Value: {star_val} ({len(star_groups_sorted[star_val])} races)", expanded=True):
                     
                     # Show first race as example
-                    example_race = star_groups[star_val][0]
+                    example_race = star_groups_sorted[star_val][0]
                     
                     col1, col2, col3 = st.columns(3)
                     
@@ -96,12 +99,12 @@ if st.button("🔍 Analyze Star Values", type="primary"):
             # Show all unique star values found
             st.subheader("✨ Summary")
             st.write(f"**Total races analyzed:** {len(races)}")
-            st.write(f"**Unique star values found:** {sorted(star_groups.keys())}")
+            st.write(f"**Unique star values found:** {sorted(star_groups_sorted.keys())}")
             
             # Percentage breakdown
             st.markdown("**Star Value Breakdown:**")
-            for star_val in sorted(star_groups.keys()):
-                count = len(star_groups[star_val])
+            for star_val in sorted(star_groups_sorted.keys()):
+                count = len(star_groups_sorted[star_val])
                 percentage = (count / len(races)) * 100
                 st.write(f"- Star {star_val}: {count} races ({percentage:.1f}%)")
             
