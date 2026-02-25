@@ -329,21 +329,87 @@ if 'vault_cores' in st.session_state:
         # TABLE VIEW
         else:
             if load_data and filtered_cores:
-                with st.spinner("Loading racing stats..."):
+                with st.spinner("Loading racing stats and race history..."):
                     hids = [c['hid'] for c in filtered_cores]
-                    stats_data = fetch_api("/cores/racing_stats_bulk", {"hids": hids})
                     
+                    # Load racing stats (can handle large batches)
+                    stats_data = fetch_api("/cores/racing_stats_bulk", {"hids": hids}, timeout=180)
                     if stats_data:
                         st.session_state.stats_lookup = {s['hid']: s for s in stats_data}
-                        st.success(f"✓ Racing stats loaded for {mode_select.upper()}")
+                        st.success(f"✓ Loaded racing stats for {len(hids)} cores")
+                    
+                    # Load race history in batches for star calculations
+                    batch_size = 25  # Process 25 cores at a time
+                    races_data = {}
+                    
+                    if len(hids) > 100:
+                        st.warning(f"⚠️ Large vault ({len(hids)} cores) - Race history may take 2-5 minutes to load...")
+                    
+                    # Create progress bar
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    for i in range(0, len(hids), batch_size):
+                        batch = hids[i:i+batch_size]
+                        batch_num = (i // batch_size) + 1
+                        total_batches = (len(hids) + batch_size - 1) // batch_size
+                        
+                        status_text.text(f"Loading race history: Batch {batch_num}/{total_batches} ({len(batch)} cores)...")
+                        
+                        for hid in batch:
+                            try:
+                                race_history = fetch_api("/i/hraces", {"hid": hid, "rvmode": mode_select, "limit": 500}, timeout=120)
+                                if race_history:
+                                    races_data[hid] = race_history
+                            except Exception as e:
+                                st.warning(f"Failed to load races for core {hid}: {str(e)}")
+                        
+                        # Update progress
+                        progress = min((i + batch_size) / len(hids), 1.0)
+                        progress_bar.progress(progress)
+                    
+                    st.session_state.races_lookup = races_data
+                    progress_bar.empty()
+                    status_text.empty()
+                    st.success(f"✓ Loaded race history for {len(races_data)}/{len(hids)} cores")
             
             if 'stats_lookup' in st.session_state and load_data:
+                
+                # Distance filter buttons
+                st.markdown("**📏 Filter by Distance:**")
+                
+                button_cols = st.columns([1] + [1]*15)
+                
+                with button_cols[0]:
+                    if st.button("All", use_container_width=True, type="primary" if not distance_filter else "secondary"):
+                        distance_filter = []
+                        st.rerun()
+                
+                for idx, cb in enumerate(range(9, 24), start=1):
+                    with button_cols[idx]:
+                        is_selected = cb in distance_filter if distance_filter else False
+                        if st.button(
+                            f"{cb*100}m", 
+                            use_container_width=True,
+                            type="primary" if is_selected else "secondary",
+                            key=f"dist_btn_{cb}"
+                        ):
+                            distance_filter = [cb]
+                            st.rerun()
+                
+                st.divider()
+                
+                # Build table
                 table_rows = []
+                races_lookup = st.session_state.get('races_lookup', {})
                 
                 for core in filtered_cores:
                     stats = st.session_state.stats_lookup.get(core['hid'], {})
-                    mode_field = f"hstats_{mode_select}"  # hstats_bike, hstats_car, hstats_horse
+                    mode_field = f"hstats_{mode_select}"
                     mode_stats = stats.get(mode_field, {})
+                    
+                    # Get race history
+                    core_races = races_lookup.get(core['hid'], [])
                     
                     row = {
                         'HID': core['hid'],
@@ -353,15 +419,27 @@ if 'vault_cores' in st.session_state:
                         'Type': core.get('type', '?').title()
                     }
                     
-                    # Add distance columns
+                    # Star percentages (all distances)
+                    if core_races:
+                        total = len(core_races)
+                        blue = len([r for r in core_races if r.get('star') in [2, 5]])
+                        gold = len([r for r in core_races if r.get('star') in [3, 5]])
+                        
+                        row['⭐ Blue%'] = f"{(blue/total*100):.1f}%" if total > 0 else "-"
+                        row['⭐ Gold%'] = f"{(gold/total*100):.1f}%" if total > 0 else "-"
+                    else:
+                        row['⭐ Blue%'] = "-"
+                        row['⭐ Gold%'] = "-"
+                    
+                    # Distance columns
                     for cb in range(9, 24):
                         if distance_filter and cb not in distance_filter:
                             continue
                         
                         cb_stats = mode_stats.get(str(cb), {})
-                        races = cb_stats.get('races_n', 0)  # races_n not 'n'
-                        win_p = cb_stats.get('win_p', 0)  # win_p is decimal
-                        win_rate = win_p * 100  # Convert to percentage
+                        races = cb_stats.get('races_n', 0)
+                        win_p = cb_stats.get('win_p', 0)
+                        win_rate = win_p * 100
                         
                         row[f'{cb*100}m'] = f"{races}-{win_rate:.1f}%" if races > 0 else "-"
                     
