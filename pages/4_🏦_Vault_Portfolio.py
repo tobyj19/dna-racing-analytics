@@ -332,20 +332,19 @@ if 'vault_cores' in st.session_state:
                 with st.spinner("Loading racing stats and race history..."):
                     hids = [c['hid'] for c in filtered_cores]
                     
-                    # Load racing stats (can handle large batches)
+                    # Load racing stats (fast - one bulk call)
                     stats_data = fetch_api("/cores/racing_stats_bulk", {"hids": hids}, timeout=180)
                     if stats_data:
                         st.session_state.stats_lookup = {s['hid']: s for s in stats_data}
                         st.success(f"✓ Loaded racing stats for {len(hids)} cores")
                     
-                    # Load race history in batches for star calculations
-                    batch_size = 25  # Process 25 cores at a time
+                    # Load race history ONCE for star calculations and distance filtering
+                    batch_size = 25
                     races_data = {}
                     
                     if len(hids) > 100:
-                        st.warning(f"⚠️ Large vault ({len(hids)} cores) - Race history may take 2-5 minutes to load...")
+                        st.warning(f"⚠️ Large vault ({len(hids)} cores) - Loading race history may take 2-5 minutes...")
                     
-                    # Create progress bar
                     progress_bar = st.progress(0)
                     status_text = st.empty()
                     
@@ -362,9 +361,8 @@ if 'vault_cores' in st.session_state:
                                 if race_history:
                                     races_data[hid] = race_history
                             except Exception as e:
-                                st.warning(f"Failed to load races for core {hid}: {str(e)}")
+                                pass  # Continue loading others
                         
-                        # Update progress
                         progress = min((i + batch_size) / len(hids), 1.0)
                         progress_bar.progress(progress)
                     
@@ -399,6 +397,12 @@ if 'vault_cores' in st.session_state:
                 
                 st.divider()
                 
+                # Show what's being displayed
+                if distance_filter:
+                    st.info(f"📊 Showing stats for {distance_filter[0]*100}m only")
+                else:
+                    st.info(f"📊 Showing career totals (all distances)")
+                
                 # Build table
                 table_rows = []
                 races_lookup = st.session_state.get('races_lookup', {})
@@ -407,8 +411,6 @@ if 'vault_cores' in st.session_state:
                     stats = st.session_state.stats_lookup.get(core['hid'], {})
                     mode_field = f"hstats_{mode_select}"
                     mode_stats = stats.get(mode_field, {})
-                    
-                    # Get race history
                     core_races = races_lookup.get(core['hid'], [])
                     
                     row = {
@@ -419,40 +421,96 @@ if 'vault_cores' in st.session_state:
                         'Type': core.get('type', '?').title()
                     }
                     
-                    # Star percentages (all distances)
-                    if core_races:
-                        total = len(core_races)
-                        blue = len([r for r in core_races if r.get('star') in [2, 5]])
-                        gold = len([r for r in core_races if r.get('star') in [3, 5]])
+                    # CASE 1: Distance filter selected - show stats for that distance only
+                    if distance_filter:
+                        cb = distance_filter[0]
                         
-                        row['⭐ Blue%'] = f"{(blue/total*100):.1f}%" if total > 0 else "-"
-                        row['⭐ Gold%'] = f"{(gold/total*100):.1f}%" if total > 0 else "-"
-                    else:
-                        row['⭐ Blue%'] = "-"
-                        row['⭐ Gold%'] = "-"
-                    
-                    # Distance columns
-                    for cb in range(9, 24):
-                        if distance_filter and cb not in distance_filter:
-                            continue
-                        
+                        # Get stats for this distance
                         cb_stats = mode_stats.get(str(cb), {})
-                        races = cb_stats.get('races_n', 0)
+                        races_n = cb_stats.get('races_n', 0)
                         win_p = cb_stats.get('win_p', 0)
-                        win_rate = win_p * 100
+                        p2_n = cb_stats.get('p2_n', 0)
+                        p3_n = cb_stats.get('p3_n', 0)
                         
-                        row[f'{cb*100}m'] = f"{races}-{win_rate:.1f}%" if races > 0 else "-"
+                        # Calculate place % (wins + 2nd + 3rd)
+                        wins = int(races_n * win_p) if races_n > 0 else 0
+                        places = wins + p2_n + p3_n
+                        place_pct = (places / races_n * 100) if races_n > 0 else 0
+                        
+                        row['Races'] = races_n
+                        row['Wr%'] = f"{win_p * 100:.1f}%" if races_n > 0 else "-"
+                        row['Place%'] = f"{place_pct:.1f}%" if races_n > 0 else "-"
+                        
+                        # Star % for this distance only
+                        if core_races:
+                            distance_races = [r for r in core_races if r.get('cb') == cb]
+                            if distance_races:
+                                total = len(distance_races)
+                                blue = len([r for r in distance_races if r.get('star') in [2, 5]])
+                                gold = len([r for r in distance_races if r.get('star') in [3, 5]])
+                                
+                                row['Blue star%'] = f"{(blue/total*100):.1f}%"
+                                row['Gold star%'] = f"{(gold/total*100):.1f}%"
+                            else:
+                                row['Blue star%'] = "-"
+                                row['Gold star%'] = "-"
+                        else:
+                            row['Blue star%'] = "-"
+                            row['Gold star%'] = "-"
+                    
+                    # CASE 2: No filter - show career totals
+                    else:
+                        career_stats = mode_stats.get('career', {})
+                        races_n = career_stats.get('races_n', 0)
+                        win_p = career_stats.get('win_p', 0)
+                        p2_n = career_stats.get('p2_n', 0)
+                        p3_n = career_stats.get('p3_n', 0)
+                        
+                        # Calculate place %
+                        wins = int(races_n * win_p) if races_n > 0 else 0
+                        places = wins + p2_n + p3_n
+                        place_pct = (places / races_n * 100) if races_n > 0 else 0
+                        
+                        row['Races'] = races_n
+                        row['Wr%'] = f"{win_p * 100:.1f}%" if races_n > 0 else "-"
+                        row['Place%'] = f"{place_pct:.1f}%" if races_n > 0 else "-"
+                        
+                        # Star % for all races
+                        if core_races:
+                            total = len(core_races)
+                            blue = len([r for r in core_races if r.get('star') in [2, 5]])
+                            gold = len([r for r in core_races if r.get('star') in [3, 5]])
+                            
+                            row['Blue star%'] = f"{(blue/total*100):.1f}%"
+                            row['Gold star%'] = f"{(gold/total*100):.1f}%"
+                        else:
+                            row['Blue star%'] = "-"
+                            row['Gold star%'] = "-"
                     
                     table_rows.append(row)
                 
                 df = pd.DataFrame(table_rows)
-                st.dataframe(df, use_container_width=True, height=600, hide_index=True)
+                
+                # Display table
+                st.dataframe(
+                    df, 
+                    use_container_width=True, 
+                    height=600, 
+                    hide_index=True,
+                    column_config={
+                        "Races": st.column_config.NumberColumn("Races", help="Total races"),
+                        "Wr%": st.column_config.TextColumn("Wr%", help="Win rate percentage"),
+                        "Place%": st.column_config.TextColumn("Place%", help="1st, 2nd, or 3rd place percentage"),
+                        "Blue star%": st.column_config.TextColumn("⭐ Blue%", help="Blue star percentage (includes doubles)"),
+                        "Gold star%": st.column_config.TextColumn("⭐ Gold%", help="Gold star percentage (includes doubles)")
+                    }
+                )
                 
                 csv = df.to_csv(index=False)
                 st.download_button(
                     "📥 Download CSV",
                     csv,
-                    f"vault_racing_{mode_select}.csv",
+                    f"vault_{mode_select}_{'filtered' if distance_filter else 'career'}.csv",
                     "text/csv"
                 )
             else:
