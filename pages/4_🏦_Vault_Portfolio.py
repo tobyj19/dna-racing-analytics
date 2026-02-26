@@ -448,10 +448,8 @@ if 'vault_cores' in st.session_state:
                         'Type': core.get('type', '?').title()
                     }
                     
-                    # CASE 1: Distance filter selected - show stats for those distances
+                    # CASE 1: Distance filter selected - show stats for that distance only
                     if distance_filter:
-                        # If multiple distances selected, show first one only
-                        # (or we could aggregate - let me know if you want that)
                         cb = distance_filter[0]
                         
                         # Get stats for this distance
@@ -471,8 +469,11 @@ if 'vault_cores' in st.session_state:
                         row['Place%'] = f"{place_pct:.1f}%" if races_n > 0 else "-"
                         
                         # Star % for this distance only
+                        # IMPORTANT: Filter by 'class' field, not 'cb'
+                        # class 10 = 1000m, class 11 = 1100m, etc.
                         if core_races:
-                            distance_races = [r for r in core_races if r.get('cb') == cb]
+                            # Filter races where class matches (class = cb * 100, so 1000m = class 1000)
+                            distance_races = [r for r in core_races if r.get('class') == cb * 100]
                             if distance_races:
                                 total = len(distance_races)
                                 blue = len([r for r in distance_races if r.get('star') in [2, 5]])
