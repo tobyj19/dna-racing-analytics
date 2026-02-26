@@ -234,9 +234,17 @@ if 'vault_cores' in st.session_state:
         
         with display_col3:
             if display_mode == "Cards":
-                load_data = st.checkbox("Load Power Stats")
+                if st.button("⚡ Load Power Stats", use_container_width=True):
+                    st.session_state.load_power_data = True
             else:
-                load_data = st.checkbox("Load Racing Stats")
+                if st.button("📊 Load Racing Stats", use_container_width=True):
+                    st.session_state.load_racing_data = True
+        
+        # Check if data should be loaded
+        if display_mode == "Cards":
+            load_data = st.session_state.get('load_power_data', False)
+        else:
+            load_data = st.session_state.get('load_racing_data', False)
         
         # Apply core filters
         filtered_cores = cores
@@ -386,9 +394,39 @@ if 'vault_cores' in st.session_state:
             
             if 'stats_lookup' in st.session_state and load_data:
                 
+                # Distance filter buttons
+                st.markdown("**📏 Filter by Distance:**")
+                
+                # Initialize from session state
+                if 'distance_filter' not in st.session_state:
+                    st.session_state.distance_filter = []
+                
+                distance_filter = st.session_state.distance_filter
+                
+                button_cols = st.columns([1] + [1]*15)
+                
+                with button_cols[0]:
+                    if st.button("All", use_container_width=True, type="primary" if not distance_filter else "secondary"):
+                        st.session_state.distance_filter = []
+                        st.rerun()
+                
+                for idx, cb in enumerate(range(9, 24), start=1):
+                    with button_cols[idx]:
+                        is_selected = cb in distance_filter if distance_filter else False
+                        if st.button(
+                            f"{cb*100}m", 
+                            use_container_width=True,
+                            type="primary" if is_selected else "secondary",
+                            key=f"dist_btn_{cb}"
+                        ):
+                            st.session_state.distance_filter = [cb]
+                            st.rerun()
+                
+                st.divider()
+                
                 # Show what's being displayed
                 if distance_filter:
-                    st.info(f"📊 Showing stats for {', '.join([f'{d*100}m' for d in distance_filter])}")
+                    st.info(f"📊 Showing stats for {distance_filter[0]*100}m only")
                 else:
                     st.info(f"📊 Showing career totals (all distances)")
                 
