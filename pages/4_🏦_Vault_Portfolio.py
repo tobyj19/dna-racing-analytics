@@ -260,6 +260,7 @@ if 'vault_cores' in st.session_state:
         st.subheader(f"🎯 Cores ({len(filtered_cores)})")
         
         # CARDS VIEW
+        if display_mode == "Cards":
             if load_data and filtered_cores:
                 with st.spinner("Loading power data..."):
                     hids = [c['hid'] for c in filtered_cores]
