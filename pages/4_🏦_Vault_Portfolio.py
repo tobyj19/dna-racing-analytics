@@ -177,8 +177,10 @@ if 'vault_cores' in st.session_state:
         
         st.divider()
         
-        # Filters
-        st.subheader("🔍 Filters")
+        # ==================
+        # FILTERS & DISPLAY OPTIONS
+        # ==================
+        st.subheader("🔍 Filters & Display Options")
         
         unique_elements = sorted(list(set([c.get('element', 'unknown') for c in cores if c.get('element')])))
         unique_types = sorted(list(set([c.get('type', 'unknown') for c in cores if c.get('type')])))
@@ -189,6 +191,7 @@ if 'vault_cores' in st.session_state:
             st.write(f"**Types:** {', '.join(unique_types)}")
             st.write(f"**Genders:** {', '.join(unique_genders)}")
         
+        # Row 1: Core filters
         filter_col1, filter_col2, filter_col3 = st.columns(3)
         
         with filter_col1:
@@ -212,7 +215,30 @@ if 'vault_cores' in st.session_state:
                 default=[]
             )
         
-        # Apply filters
+        # Row 2: Display options
+        display_col1, display_col2, display_col3 = st.columns(3)
+        
+        with display_col1:
+            display_mode = st.radio(
+                "Display Mode",
+                ["Cards", "Table"],
+                horizontal=True
+            )
+        
+        with display_col2:
+            mode_select = st.selectbox(
+                "Mode",
+                ["bike", "car", "horse"],
+                index=0
+            )
+        
+        with display_col3:
+            if display_mode == "Cards":
+                load_data = st.checkbox("Load Power Stats")
+            else:
+                load_data = st.checkbox("Load Racing Stats")
+        
+        # Apply core filters
         filtered_cores = cores
         
         if element_filter:
@@ -228,41 +254,12 @@ if 'vault_cores' in st.session_state:
         
         st.divider()
         
-        # Display mode selector
+        # ==================
+        # DISPLAY CORES
+        # ==================
         st.subheader(f"🎯 Cores ({len(filtered_cores)})")
         
-        display_col1, display_col2, display_col3 = st.columns([1, 2, 2])
-        
-        with display_col1:
-            display_mode = st.radio(
-                "Display Mode",
-                ["Cards", "Table"],
-                horizontal=True
-            )
-        
-        with display_col2:
-            mode_select = st.selectbox(
-                "Mode",
-                ["bike", "car", "horse"],
-                index=0
-            )
-            
-            if display_mode == "Cards":
-                load_data = st.checkbox("Load Power Stats")
-            else:
-                load_data = st.checkbox("Load Racing Stats")
-        
-        with display_col3:
-            if display_mode == "Table":
-                distance_filter = st.multiselect(
-                    "Filter Distances",
-                    options=list(range(9, 24)),
-                    default=[],
-                    format_func=lambda x: f"{x*100}m"
-                )
-        
         # CARDS VIEW
-        if display_mode == "Cards":
             if load_data and filtered_cores:
                 with st.spinner("Loading power data..."):
                     hids = [c['hid'] for c in filtered_cores]
@@ -329,16 +326,31 @@ if 'vault_cores' in st.session_state:
         # TABLE VIEW
         else:
             if load_data and filtered_cores:
-                with st.spinner("Loading racing stats and race history..."):
-                    hids = [c['hid'] for c in filtered_cores]
-                    
-                    # Load racing stats (fast - one bulk call)
-                    stats_data = fetch_api("/cores/racing_stats_bulk", {"hids": hids}, timeout=180)
-                    if stats_data:
-                        st.session_state.stats_lookup = {s['hid']: s for s in stats_data}
-                        st.success(f"✓ Loaded racing stats for {len(hids)} cores")
-                    
-                    # Load race history ONCE for star calculations and distance filtering
+                hids = [c['hid'] for c in filtered_cores]
+                
+                # Load racing stats with retry
+                stats_loaded = False
+                for attempt in range(3):
+                    try:
+                        with st.spinner(f"Loading racing stats (attempt {attempt + 1}/3)..."):
+                            stats_data = fetch_api("/cores/racing_stats_bulk", {"hids": hids}, timeout=240)
+                            if stats_data:
+                                st.session_state.stats_lookup = {s['hid']: s for s in stats_data}
+                                st.success(f"✓ Loaded racing stats for {len(hids)} cores")
+                                stats_loaded = True
+                                break
+                    except Exception as e:
+                        if attempt < 2:
+                            st.warning(f"Attempt {attempt + 1} failed, retrying...")
+                        else:
+                            st.error(f"Failed to load racing stats after 3 attempts: {str(e)}")
+                
+                if not stats_loaded:
+                    st.error("❌ Unable to load racing stats. Try with fewer cores or try again later.")
+                    st.stop()
+                
+                # Load race history in batches
+                with st.spinner("Loading race history..."):
                     batch_size = 25
                     races_data = {}
                     
@@ -360,8 +372,8 @@ if 'vault_cores' in st.session_state:
                                 race_history = fetch_api("/i/hraces", {"hid": hid, "rvmode": mode_select, "limit": 500}, timeout=120)
                                 if race_history:
                                     races_data[hid] = race_history
-                            except Exception as e:
-                                pass  # Continue loading others
+                            except:
+                                pass  # Continue with others
                         
                         progress = min((i + batch_size) / len(hids), 1.0)
                         progress_bar.progress(progress)
@@ -373,37 +385,13 @@ if 'vault_cores' in st.session_state:
             
             if 'stats_lookup' in st.session_state and load_data:
                 
-                # Distance filter buttons
-                st.markdown("**📏 Filter by Distance:**")
-                
-                button_cols = st.columns([1] + [1]*15)
-                
-                with button_cols[0]:
-                    if st.button("All", use_container_width=True, type="primary" if not distance_filter else "secondary"):
-                        distance_filter = []
-                        st.rerun()
-                
-                for idx, cb in enumerate(range(9, 24), start=1):
-                    with button_cols[idx]:
-                        is_selected = cb in distance_filter if distance_filter else False
-                        if st.button(
-                            f"{cb*100}m", 
-                            use_container_width=True,
-                            type="primary" if is_selected else "secondary",
-                            key=f"dist_btn_{cb}"
-                        ):
-                            distance_filter = [cb]
-                            st.rerun()
-                
-                st.divider()
-                
                 # Show what's being displayed
                 if distance_filter:
-                    st.info(f"📊 Showing stats for {distance_filter[0]*100}m only")
+                    st.info(f"📊 Showing stats for {', '.join([f'{d*100}m' for d in distance_filter])}")
                 else:
                     st.info(f"📊 Showing career totals (all distances)")
                 
-                # Build table
+                st.divider()
                 table_rows = []
                 races_lookup = st.session_state.get('races_lookup', {})
                 
@@ -421,8 +409,10 @@ if 'vault_cores' in st.session_state:
                         'Type': core.get('type', '?').title()
                     }
                     
-                    # CASE 1: Distance filter selected - show stats for that distance only
+                    # CASE 1: Distance filter selected - show stats for those distances
                     if distance_filter:
+                        # If multiple distances selected, show first one only
+                        # (or we could aggregate - let me know if you want that)
                         cb = distance_filter[0]
                         
                         # Get stats for this distance
