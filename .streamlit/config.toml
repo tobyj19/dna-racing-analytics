@@ -1,0 +1,120 @@
+[theme]
+primaryColor = "#667eea"
+backgroundColor = "#0e1117"
+secondaryBackgroundColor = "#1e2130"
+textColor = "#fafafa"
+font = "sans serif"
+
+[server]
+headless = true
+```
+
+5. Scroll down, click **"Commit changes"**
+
+**Visual Check:**
+```
+✅ Correct:   dna-racing-analytics/.streamlit/config.toml
+❌ Wrong:     dna-racing-analytics/streamlit/config.toml (missing the dot)
+❌ Wrong:     dna-racing-analytics/pages/.streamlit/config.toml
+```
+
+---
+
+### **STEP 3: Rename Page Files (Remove Emojis)**
+
+You need to rename each page file. Here's how for ONE file (then repeat):
+
+**Example: Rename Core Analytics**
+
+1. Go to `pages/` folder in GitHub
+2. Click on `1_🔍_Core_Analytics.py`
+3. Click the **pencil icon** (Edit this file)
+4. At the top, you'll see the filename
+5. Click the **filename** itself to edit it
+6. Change from: `1_🔍_Core_Analytics.py`
+7. Change to: `1_Core_Analytics.py` (remove the 🔍 emoji)
+8. Scroll down, click **"Commit changes"**
+
+**Repeat for all 7 pages:**
+
+| Old Name (with emoji) | New Name (no emoji) |
+|----------------------|---------------------|
+| `1_🔍_Core_Analytics.py` | `1_Core_Analytics.py` |
+| `5_⚖️_Core_Comparison.py` | `2_Core_Comparison.py` |
+| `6_🏁_Race_Finder.py` | `3_Race_Finder.py` |
+| `COMPLETE_4_🏦_Vault_Portfolio.py` | `4_Vault_Portfolio.py` |
+| `5_🧬_Breeding_Analyzer.py` | `5_Breeding_Analyzer.py` |
+| `6_🏁_Speed_Rankings.py` | `6_Speed_Rankings.py` |
+| `7_🗄️_Power_Database.py` | `7_Power_Database.py` |
+
+---
+
+### **STEP 4: Delete Old Pages**
+
+1. Go to `pages/` folder
+2. For each old file, click on it
+3. Click the **trash can icon** (Delete this file)
+4. Scroll down, click **"Commit changes"**
+
+**Delete these 8 files:**
+- `1_🔍_Core_Search.py`
+- `2_📊_Performance_Analysis.py`
+- `3_🏁_Race_History.py`
+- `4_🧬_Breeding_Lineage.py`
+- `7_📋_Core_List_Test.py`
+- `8_🏦_Vault_Portfolio.py`
+- `NEW_4_🏦_Vault_Portfolio.py`
+- `NEW_4_🏦_Vault_Portfolio_BACKUP.py`
+
+---
+
+## **✅ Final Check**
+
+When done, your repository should have:
+
+**Root level:**
+```
+Home.py                    ← Can you see this?
+.streamlit/
+  config.toml              ← Can you see this?
+pages/
+  1_Core_Analytics.py      ← No emoji?
+  2_Core_Comparison.py     ← No emoji?
+  3_Race_Finder.py         ← No emoji?
+  4_Vault_Portfolio.py     ← No emoji?
+  5_Breeding_Analyzer.py   ← No emoji?
+  6_Speed_Rankings.py      ← No emoji?
+  7_Power_Database.py      ← No emoji?
+README.md
+```
+
+---
+
+## **❓ Common Issues**
+
+### **"I don't see .streamlit folder"**
+- GitHub hides folders starting with `.` sometimes
+- Click "Go to file" at top and type `.streamlit/config.toml`
+- If it exists, you'll find it
+
+### **"Home.py is inside pages/ folder"**
+- Delete it from pages/
+- Re-upload to root level (same level as README)
+
+### **"Can't rename - it duplicates"**
+- Delete the old file first
+- Then upload the new renamed file
+
+---
+
+## **🎥 Visual Guide**
+
+Where is "root level"?
+```
+When you open your repository, you should see:
+
+dna-racing-analytics  ← You are here (root)
+├── 📄 Home.py       ← New file goes HERE
+├── 📁 .streamlit    ← New folder goes HERE
+├── 📁 pages         ← Don't put Home.py in here!
+└── 📄 README.md
