@@ -206,101 +206,105 @@ if 'cores_to_analyze' in st.session_state and st.session_state.cores_to_analyze:
         # Display results
         st.header("Speed Rankings by Distance")
         
-        # Create tabs for each distance
-        distance_tabs = st.tabs([f"{cb*100}m" for cb in sorted(rankings_by_distance.keys())])
-        
-        for tab_idx, cb in enumerate(sorted(rankings_by_distance.keys())):
-            with distance_tabs[tab_idx]:
-                rankings = rankings_by_distance[cb]
-                
-                if not rankings:
-                    st.warning(f"No cores found with {min_races}+ races at {cb*100}m")
-                    continue
-                
-                st.markdown(f"**Top {len(rankings)} Fastest Cores at {cb*100}m**")
-                st.caption(f"Global Average: {GLOBAL_AVERAGES[cb]:.2f}s | Minimum {min_races} races required")
-                
-                # Build table
-                table_data = []
-                for idx, core_data in enumerate(rankings, 1):
-                    # Determine medal emoji
-                    if idx == 1:
-                        medal = "🥇"
-                    elif idx == 2:
-                        medal = "🥈"
-                    elif idx == 3:
-                        medal = "🥉"
-                    else:
-                        medal = f"#{idx}"
+        # Check if we have any rankings
+        if not rankings_by_distance:
+            st.warning("No cores found with sufficient races at any distance. Try lowering the minimum races requirement.")
+        else:
+            # Create tabs for each distance
+            distance_tabs = st.tabs([f"{cb*100}m" for cb in sorted(rankings_by_distance.keys())])
+            
+            for tab_idx, cb in enumerate(sorted(rankings_by_distance.keys())):
+                with distance_tabs[tab_idx]:
+                    rankings = rankings_by_distance[cb]
                     
-                    # Calculate time difference
-                    time_diff = core_data['global_avg'] - core_data['avg_time']
-                    
-                    table_data.append({
-                        'Rank': medal,
-                        'Core ID': core_data['hid'],
-                        'Avg Time': f"{core_data['avg_time']:.2f}s",
-                        'Global Avg': f"{core_data['global_avg']:.2f}s",
-                        'Difference': f"{time_diff:+.2f}s",
-                        '% Faster': f"{core_data['pct_faster']:.2f}%",
-                        'Races': core_data['races']
-                    })
+                    if not rankings:
+                        st.warning(f"No cores found with {min_races}+ races at {cb*100}m")
+                        continue
                 
-                df = pd.DataFrame(table_data)
+                    st.markdown(f"**Top {len(rankings)} Fastest Cores at {cb*100}m**")
+                    st.caption(f"Global Average: {GLOBAL_AVERAGES[cb]:.2f}s | Minimum {min_races} races required")
                 
-                st.dataframe(
-                    df,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "Rank": st.column_config.TextColumn("Rank", width="small"),
-                        "Core ID": st.column_config.NumberColumn("Core ID", format="%d"),
-                        "Avg Time": st.column_config.TextColumn("Avg Time"),
-                        "Global Avg": st.column_config.TextColumn("Global Avg"),
-                        "Difference": st.column_config.TextColumn("Diff", help="Negative = slower, Positive = faster"),
-                        "% Faster": st.column_config.TextColumn("% Faster", help="Percentage faster than global average"),
-                        "Races": st.column_config.NumberColumn("Races", format="%d")
-                    }
-                )
+                    # Build table
+                    table_data = []
+                    for idx, core_data in enumerate(rankings, 1):
+                        # Determine medal emoji
+                        if idx == 1:
+                            medal = "🥇"
+                        elif idx == 2:
+                            medal = "🥈"
+                        elif idx == 3:
+                            medal = "🥉"
+                        else:
+                            medal = f"#{idx}"
+                    
+                        # Calculate time difference
+                        time_diff = core_data['global_avg'] - core_data['avg_time']
+                    
+                        table_data.append({
+                            'Rank': medal,
+                            'Core ID': core_data['hid'],
+                            'Avg Time': f"{core_data['avg_time']:.2f}s",
+                            'Global Avg': f"{core_data['global_avg']:.2f}s",
+                            'Difference': f"{time_diff:+.2f}s",
+                            '% Faster': f"{core_data['pct_faster']:.2f}%",
+                            'Races': core_data['races']
+                        })
                 
-                # Download button
-                csv = df.to_csv(index=False)
-                st.download_button(
-                    f"📥 Download {cb*100}m Rankings",
-                    csv,
-                    f"speed_rankings_{cb*100}m_{mode}.csv",
-                    "text/csv",
-                    key=f"download_{cb}"
-                )
+                    df = pd.DataFrame(table_data)
                 
-                # Show top 3 with highlights
-                if len(rankings) >= 3:
-                    st.markdown("**🏆 Podium:**")
-                    col1, col2, col3 = st.columns(3)
+                    st.dataframe(
+                        df,
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "Rank": st.column_config.TextColumn("Rank", width="small"),
+                            "Core ID": st.column_config.NumberColumn("Core ID", format="%d"),
+                            "Avg Time": st.column_config.TextColumn("Avg Time"),
+                            "Global Avg": st.column_config.TextColumn("Global Avg"),
+                            "Difference": st.column_config.TextColumn("Diff", help="Negative = slower, Positive = faster"),
+                            "% Faster": st.column_config.TextColumn("% Faster", help="Percentage faster than global average"),
+                            "Races": st.column_config.NumberColumn("Races", format="%d")
+                        }
+                    )
+                
+                    # Download button
+                    csv = df.to_csv(index=False)
+                    st.download_button(
+                        f"📥 Download {cb*100}m Rankings",
+                        csv,
+                        f"speed_rankings_{cb*100}m_{mode}.csv",
+                        "text/csv",
+                        key=f"download_{cb}"
+                    )
+                
+                    # Show top 3 with highlights
+                    if len(rankings) >= 3:
+                        st.markdown("**🏆 Podium:**")
+                        col1, col2, col3 = st.columns(3)
                     
-                    with col1:
-                        st.metric(
-                            "🥇 1st Place",
-                            f"Core #{rankings[0]['hid']}",
-                            f"{rankings[0]['avg_time']:.2f}s ({rankings[0]['pct_faster']:+.2f}%)"
-                        )
+                        with col1:
+                            st.metric(
+                                "🥇 1st Place",
+                                f"Core #{rankings[0]['hid']}",
+                                f"{rankings[0]['avg_time']:.2f}s ({rankings[0]['pct_faster']:+.2f}%)"
+                            )
                     
-                    with col2:
-                        st.metric(
-                            "🥈 2nd Place",
-                            f"Core #{rankings[1]['hid']}",
-                            f"{rankings[1]['avg_time']:.2f}s ({rankings[1]['pct_faster']:+.2f}%)"
-                        )
+                        with col2:
+                            st.metric(
+                                "🥈 2nd Place",
+                                f"Core #{rankings[1]['hid']}",
+                                f"{rankings[1]['avg_time']:.2f}s ({rankings[1]['pct_faster']:+.2f}%)"
+                            )
                     
-                    with col3:
-                        st.metric(
-                            "🥉 3rd Place",
-                            f"Core #{rankings[2]['hid']}",
-                            f"{rankings[2]['avg_time']:.2f}s ({rankings[2]['pct_faster']:+.2f}%)"
-                        )
+                        with col3:
+                            st.metric(
+                                "🥉 3rd Place",
+                                f"Core #{rankings[2]['hid']}",
+                                f"{rankings[2]['avg_time']:.2f}s ({rankings[2]['pct_faster']:+.2f}%)"
+                            )
 
-else:
-    st.info("👆 Enter core IDs or load a vault to analyze speed rankings")
+    else:
+        st.info("👆 Enter core IDs or load a vault to analyze speed rankings")
     
     with st.expander("💡 How It Works"):
         st.markdown("""
