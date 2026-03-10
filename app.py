@@ -248,13 +248,13 @@ with col2:
 with col3:
     st.markdown("""
     <div class="tool-card">
-        <div class="tool-icon">⚡</div>
-        <div class="tool-title">Speed Rankings</div>
-        <div class="tool-description">Top 30 fastest cores per distance vs global averages</div>
+        <div class="tool-icon">🗄️</div>
+        <div class="tool-title">Power Database</div>
+        <div class="tool-description">Search and filter power stats across all cores</div>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("Launch Tool", key="btn_speed", use_container_width=True):
-        st.switch_page("pages/6_Speed_Rankings.py")
+    if st.button("Launch Tool", key="btn_power", use_container_width=True):
+        st.switch_page("pages/6_Power_Database.py")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -264,13 +264,13 @@ col1, col2, col3 = st.columns(3, gap="large")
 with col1:
     st.markdown("""
     <div class="tool-card">
-        <div class="tool-icon">🗄️</div>
-        <div class="tool-title">Power Database</div>
-        <div class="tool-description">Search and filter power stats across all cores</div>
+        <div class="tool-icon">⚡</div>
+        <div class="tool-title">Speed Rankings</div>
+        <div class="tool-description">Top 30 fastest cores per distance vs global averages</div>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("Launch Tool", key="btn_database", use_container_width=True):
-        st.switch_page("pages/7_Power_Database.py")
+    if st.button("Launch Tool", key="btn_speed", use_container_width=True):
+        st.switch_page("pages/7_Speed_Rankings.py")
 
 with col2:
     st.markdown("""
