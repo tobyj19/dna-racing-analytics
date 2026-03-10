@@ -8,71 +8,142 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for dark theme
+# Custom CSS for improved design
 st.markdown("""
 <style>
-    /* Dark theme colors */
-    :root {
-        --background-color: #0e1117;
-        --secondary-background-color: #1e2130;
-        --text-color: #fafafa;
-        --accent-color: #667eea;
-    }
-    
-    /* Hide sidebar by default on home page */
+    /* Hide sidebar on home page */
     [data-testid="stSidebar"] {
         display: none;
     }
     
-    /* Navigation button styling */
-    .nav-button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        border-radius: 10px;
-        padding: 30px;
-        margin: 10px;
-        color: white;
-        font-size: 20px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
+    /* Main container styling */
+    .main {
+        background-color: #0e1117;
+    }
+    
+    /* Search bar styling */
+    .search-container {
+        max-width: 800px;
+        margin: 0 auto 60px auto;
+        padding: 20px;
+    }
+    
+    /* Card styling */
+    .tool-card {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 15px;
+        padding: 30px 20px;
         text-align: center;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        height: 100%;
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
     
-    .nav-button:hover {
+    .tool-card:hover {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+        border-color: rgba(102, 126, 234, 0.5);
         transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
     }
     
-    .nav-button-description {
+    .tool-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+    }
+    
+    .tool-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #fafafa;
+        margin-bottom: 10px;
+    }
+    
+    .tool-description {
         font-size: 14px;
-        font-weight: normal;
-        opacity: 0.9;
-        margin-top: 10px;
+        color: rgba(250, 250, 250, 0.7);
+        line-height: 1.5;
     }
     
     /* Header styling */
     .main-header {
         text-align: center;
-        padding: 40px 0;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 15px;
+        padding: 60px 20px;
         margin-bottom: 40px;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
     }
     
     .main-title {
-        font-size: 48px;
-        font-weight: bold;
+        font-size: 56px;
+        font-weight: 700;
         color: white;
         margin: 0;
+        letter-spacing: -1px;
     }
     
     .main-subtitle {
         font-size: 18px;
         color: rgba(255, 255, 255, 0.9);
-        margin-top: 10px;
+        margin-top: 15px;
+        font-weight: 300;
+    }
+    
+    /* Section headers */
+    .section-header {
+        font-size: 28px;
+        font-weight: 600;
+        color: #fafafa;
+        margin: 40px 0 30px 0;
+        text-align: center;
+    }
+    
+    /* Coming soon badge */
+    .coming-soon {
+        background: rgba(102, 126, 234, 0.2);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        border-radius: 15px;
+        padding: 30px 20px;
+        text-align: center;
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    
+    .coming-soon-text {
+        font-size: 20px;
+        font-weight: 600;
+        color: rgba(250, 250, 250, 0.5);
+    }
+    
+    /* Footer */
+    .footer {
+        text-align: center;
+        padding: 40px 20px;
+        margin-top: 60px;
+        color: rgba(250, 250, 250, 0.5);
+        border-top: 1px solid rgba(102, 126, 234, 0.1);
+    }
+    
+    /* Streamlit button override */
+    .stButton button {
+        width: 100%;
+        height: 100%;
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        color: inherit !important;
+    }
+    
+    .stButton button:hover {
+        background: transparent !important;
+        border: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -85,76 +156,141 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Navigation Grid
-st.markdown("## Tools & Features")
+# Search Bar
+st.markdown('<div class="search-container">', unsafe_allow_html=True)
+search_query = st.text_input(
+    "",
+    placeholder="🔍 Search cores by name or HID...",
+    label_visibility="collapsed",
+    key="global_search"
+)
+st.caption("Search by name or HID number")
+st.markdown('</div>', unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns(3)
+if search_query:
+    st.info(f"Searching for: {search_query}")
+    st.markdown("*Search functionality coming soon - for now, use Core Analytics tool below*")
+    st.divider()
+
+# Tools Section
+st.markdown('<p class="section-header">Tools & Features</p>', unsafe_allow_html=True)
 
 # Row 1: Core Analysis Tools
+col1, col2, col3 = st.columns(3, gap="large")
+
 with col1:
-    if st.button("Core Analytics", use_container_width=True, type="primary"):
+    st.markdown("""
+    <div class="tool-card">
+        <div class="tool-icon">📊</div>
+        <div class="tool-title">Core Analytics</div>
+        <div class="tool-description">Search and analyze individual core performance, stats, and race history</div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Open", key="btn_analytics", use_container_width=True):
         st.switch_page("pages/1_Core_Analytics.py")
-    st.caption("Search and analyze individual core performance, stats, and race history")
 
 with col2:
-    if st.button("Core Comparison", use_container_width=True, type="primary"):
+    st.markdown("""
+    <div class="tool-card">
+        <div class="tool-icon">⚖️</div>
+        <div class="tool-title">Core Comparison</div>
+        <div class="tool-description">Compare multiple cores side-by-side across all metrics</div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Open", key="btn_comparison", use_container_width=True):
         st.switch_page("pages/2_Core_Comparison.py")
-    st.caption("Compare multiple cores side-by-side across all metrics")
 
 with col3:
-    if st.button("Race Finder", use_container_width=True, type="primary"):
+    st.markdown("""
+    <div class="tool-card">
+        <div class="tool-icon">🏁</div>
+        <div class="tool-title">Race Finder</div>
+        <div class="tool-description">Find upcoming races and optimal racing opportunities</div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Open", key="btn_races", use_container_width=True):
         st.switch_page("pages/3_Race_Finder.py")
-    st.caption("Find upcoming races and optimal racing opportunities")
 
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
 # Row 2: Vault & Portfolio Tools
-col1, col2, col3 = st.columns(3)
+col1, col2, col3 = st.columns(3, gap="large")
 
 with col1:
-    if st.button("Vault Portfolio", use_container_width=True, type="primary"):
+    st.markdown("""
+    <div class="tool-card">
+        <div class="tool-icon">💼</div>
+        <div class="tool-title">Vault Portfolio</div>
+        <div class="tool-description">Analyze entire vaults with filters, stats, and performance tracking</div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Open", key="btn_vault", use_container_width=True):
         st.switch_page("pages/4_Vault_Portfolio.py")
-    st.caption("Analyze entire vaults with filters, stats, and performance tracking")
 
 with col2:
-    if st.button("Breeding Analyzer", use_container_width=True, type="primary"):
+    st.markdown("""
+    <div class="tool-card">
+        <div class="tool-icon">🧬</div>
+        <div class="tool-title">Breeding Analyzer</div>
+        <div class="tool-description">Find optimal breeding pairs with distance categorization</div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Open", key="btn_breeding", use_container_width=True):
         st.switch_page("pages/5_Breeding_Analyzer.py")
-    st.caption("Find optimal breeding pairs with distance categorization")
 
 with col3:
-    if st.button("Speed Rankings", use_container_width=True, type="primary"):
+    st.markdown("""
+    <div class="tool-card">
+        <div class="tool-icon">⚡</div>
+        <div class="tool-title">Speed Rankings</div>
+        <div class="tool-description">Top 30 fastest cores per distance vs global averages</div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Open", key="btn_speed", use_container_width=True):
         st.switch_page("pages/6_Speed_Rankings.py")
-    st.caption("Top 30 fastest cores per distance vs global averages")
 
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
-# Row 3: Database Tools
-col1, col2, col3 = st.columns(3)
+# Row 3: Database & Future Tools
+col1, col2, col3 = st.columns(3, gap="large")
 
 with col1:
-    if st.button("Power Database", use_container_width=True, type="primary"):
+    st.markdown("""
+    <div class="tool-card">
+        <div class="tool-icon">🗄️</div>
+        <div class="tool-title">Power Database</div>
+        <div class="tool-description">Search and filter power stats across all cores</div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Open", key="btn_database", use_container_width=True):
         st.switch_page("pages/7_Power_Database.py")
-    st.caption("Search and filter power stats across all cores")
 
 with col2:
-    st.markdown("### Coming Soon")
-    st.caption("More analytics tools in development")
+    st.markdown("""
+    <div class="coming-soon">
+        <div class="coming-soon-text">Coming Soon</div>
+        <div class="tool-description" style="margin-top: 10px;">More analytics tools in development</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 with col3:
-    st.markdown("### Coming Soon")
-    st.caption("More analytics tools in development")
+    st.markdown("""
+    <div class="coming-soon">
+        <div class="coming-soon-text">Coming Soon</div>
+        <div class="tool-description" style="margin-top: 10px;">More analytics tools in development</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Footer
-st.divider()
 st.markdown("""
-<div style="text-align: center; opacity: 0.7; padding: 20px;">
-    <p>DNA Racing Analytics Dashboard v1.0</p>
-    <p style="font-size: 12px;">Select a tool above to get started</p>
+<div class="footer">
+    <p style="font-size: 16px; margin-bottom: 10px;">DNA Racing Analytics Dashboard v2.0</p>
+    <p style="font-size: 12px; opacity: 0.6;">Select a tool above to get started</p>
 </div>
 """, unsafe_allow_html=True)
 
 # Info section
-with st.expander("About DNA Racing Analytics"):
+with st.expander("ℹ️ About DNA Racing Analytics"):
     st.markdown("""
     **DNA Racing Analytics** is a comprehensive suite of tools for analyzing cores, performance, and breeding strategies.
     
@@ -166,5 +302,5 @@ with st.expander("About DNA Racing Analytics"):
     - **Power Database:** Search across all cores for specific stats
     
     **Getting Started:**
-    Click any tool above to begin your analysis!
+    Use the search bar above or click any tool to begin your analysis!
     """)
