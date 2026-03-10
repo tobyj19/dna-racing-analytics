@@ -1,12 +1,16 @@
 import streamlit as st
 import requests
-import pandas as pd
-from typing import Optional, List, Dict
-import time
+from typing import Optional, Dict, List
+from collections import defaultdict
 
-st.set_page_config(page_title="Power Database", page_icon="🗄️", layout="wide")
+st.set_page_config(page_title="Breeding Analyzer", page_icon="🧬", layout="wide")
 
 API_BASE_URL = "https://api.dnaracing.run/fbike"
+
+# Distance categories
+SPRINT_RANGE = list(range(9, 14))      # 900m-1300m (CB 9-13)
+MID_RANGE = list(range(14, 19))        # 1400m-1800m (CB 14-18)
+MARATHON_RANGE = list(range(19, 24))   # 1900m-2300m (CB 19-23)
 
 def fetch_api(endpoint: str, data: dict, timeout: int = 60) -> Optional[dict]:
     """Fetch data from DNA Racing API"""
@@ -23,336 +27,347 @@ def fetch_api(endpoint: str, data: dict, timeout: int = 60) -> Optional[dict]:
             return result.get("result")
         return None
     except Exception as e:
+        st.error(f"API Error: {str(e)}")
         return None
 
 
-def get_gradient_color(percentage):
-    """Calculate color: blue (0%) → green (50%) → red (100%)"""
-    if percentage <= 50:
-        ratio = percentage / 50
-        r = 0
-        g = int(255 * ratio)
-        b = int(255 * (1 - ratio))
-    else:
-        ratio = (percentage - 50) / 50
-        r = int(255 * ratio)
-        g = int(255 * (1 - ratio))
-        b = 0
-    return f"#{r:02x}{g:02x}{b:02x}"
-
-
-st.title("🗄️ Power Database")
-st.markdown("Search and filter core power statistics across all modes")
-
-# Input method selector
-input_method = st.radio(
-    "Data Source:",
-    ["Scan Core ID Range", "Load from Vault", "Enter Specific IDs"],
-    horizontal=True
-)
-
-cores_to_scan = []
-
-if input_method == "Scan Core ID Range":
-    col1, col2, col3 = st.columns([1, 1, 2])
+def categorize_core_by_distance(stats_data: dict, mode: str) -> set:
+    """Determine which distance categories a core excels in"""
+    categories = set()
+    mode_field = f"hstats_{mode}"
+    mode_stats = stats_data.get(mode_field, {})
     
-    with col1:
-        start_id = st.number_input("Start Core ID", min_value=1, value=1, step=1)
+    for cb_str, cb_data in mode_stats.items():
+        if cb_str == 'career':
+            continue
+            
+        try:
+            cb = int(cb_str)
+            win_p = cb_data.get('win_p', 0)
+            win_rate = win_p * 100
+            races = cb_data.get('races_n', 0)
+            
+            if win_rate > 28 and races >= 20:
+                if cb in SPRINT_RANGE:
+                    categories.add('sprint')
+                elif cb in MID_RANGE:
+                    categories.add('mid')
+                elif cb in MARATHON_RANGE:
+                    categories.add('marathon')
+        except:
+            continue
     
-    with col2:
-        end_id = st.number_input("End Core ID", min_value=1, value=1000, step=1)
-    
-    with col3:
-        st.write("")
-        st.write("")
-        if st.button("🔍 Scan Range", type="primary", use_container_width=True):
-            if end_id >= start_id:
-                cores_to_scan = list(range(start_id, end_id + 1))
-                st.session_state.cores_to_scan = cores_to_scan
-                st.info(f"Will scan {len(cores_to_scan)} core IDs")
-            else:
-                st.error("End ID must be greater than Start ID")
+    return categories
 
-elif input_method == "Load from Vault":
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        search_type = st.radio("Search by:", ["Vault Address", "Vault Name"], horizontal=True)
-        
-        if search_type == "Vault Address":
-            vault_input = st.text_input("Enter Vault Address", placeholder="0xaf1320...")
-        else:
-            vault_input = st.text_input("Enter Vault Name", placeholder="wisdom-weaver")
-    
-    with col2:
-        st.write("")
-        st.write("")
-        if st.button("🔍 Load Vault", type="primary", use_container_width=True):
-            if vault_input:
-                vault_address = vault_input.lower() if vault_input.startswith("0x") else vault_input
-                
-                with st.spinner("Loading vault..."):
-                    vault_cores = fetch_api("/vault/bikes_inf", {"vault": vault_address})
-                
-                if vault_cores:
-                    regular_cores = [c for c in vault_cores if not c.get('is_trainer', False)]
-                    cores_to_scan = [c['hid'] for c in regular_cores]
-                    st.session_state.cores_to_scan = cores_to_scan
-                    st.success(f"✓ Loaded {len(cores_to_scan)} cores from vault")
-                else:
-                    st.error("Failed to load vault")
 
-else:  # Enter Specific IDs
-    core_ids_input = st.text_area(
-        "Enter Core IDs (comma-separated or one per line)",
-        placeholder="588, 599, 192\nor\n588\n599\n192",
-        height=100
+st.title("🧬 Breeding Analyzer")
+st.markdown("Analyze your vault's cores and discover optimal breeding pairs")
+
+# Search section
+st.subheader("🔍 Search Vault")
+
+col1, col2 = st.columns([3, 1])
+
+with col1:
+    search_type = st.radio(
+        "Search by:",
+        ["Vault Address", "Vault Name"],
+        horizontal=True
     )
     
-    if st.button("🔍 Load Cores", type="primary"):
-        if core_ids_input:
-            ids_str = core_ids_input.replace('\n', ',').replace(' ', '')
-            cores_to_scan = [int(x.strip()) for x in ids_str.split(',') if x.strip().isdigit()]
-            
-            if cores_to_scan:
-                st.session_state.cores_to_scan = cores_to_scan
-                st.success(f"✓ Will load {len(cores_to_scan)} cores")
-            else:
-                st.error("No valid core IDs found")
+    if search_type == "Vault Address":
+        vault_input = st.text_input(
+            "Enter Vault Address",
+            placeholder="0xaf1320faa9a484a4702ec16ffec18260cc42c3c2"
+        )
+    else:
+        vault_input = st.text_input(
+            "Enter Vault Name",
+            placeholder="wisdom-weaver"
+        )
 
-st.divider()
+with col2:
+    st.write("")
+    st.write("")
+    search_btn = st.button("🔍 Analyze Vault", type="primary", use_container_width=True)
 
-# Process and display data
-if 'cores_to_scan' in st.session_state and st.session_state.cores_to_scan:
-    hids = st.session_state.cores_to_scan
+if search_btn and vault_input:
     
-    if st.button("⚡ Load Power Data", type="primary", use_container_width=True):
-        
-        st.info(f"📊 Loading power data for {len(hids)} cores...")
-        
-        with st.spinner("Fetching core information and power stats..."):
-            # Batch processing
-            batch_size = 100
-            all_core_info = []
-            all_power_data = {}
-            
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            for i in range(0, len(hids), batch_size):
-                batch = hids[i:i+batch_size]
-                batch_num = (i // batch_size) + 1
-                total_batches = (len(hids) + batch_size - 1) // batch_size
-                
-                status_text.text(f"Loading batch {batch_num}/{total_batches} ({len(batch)} cores)...")
-                
-                # Fetch basic info
-                core_info = fetch_api("/cores/mini_bulk", {"hids": batch}, timeout=120)
-                if core_info:
-                    all_core_info.extend(core_info)
-                
-                # Fetch power data
-                power_data = fetch_api("/cores/power_bulk", {"hids": batch}, timeout=120)
-                if power_data:
-                    for p in power_data:
-                        all_power_data[p['hid']] = p
-                
-                progress = min((i + batch_size) / len(hids), 1.0)
-                progress_bar.progress(progress)
-                
-                # Small delay to avoid rate limiting
-                time.sleep(0.2)
-            
-            progress_bar.empty()
-            status_text.empty()
-        
-        st.success(f"✓ Loaded data for {len(all_core_info)} cores")
-        
-        # Store in session state
-        st.session_state.core_database = all_core_info
-        st.session_state.power_database = all_power_data
-        
-        st.rerun()
+    vault_address = vault_input.lower() if vault_input.startswith("0x") else vault_input
+    
+    with st.spinner("Loading vault data..."):
+        cores = fetch_api("/vault/bikes_inf", {"vault": vault_address})
+    
+    if not cores or len(cores) == 0:
+        st.error("❌ No cores found for this vault")
+        st.stop()
+    
+    regular_cores = [c for c in cores if not c.get('is_trainer', False)]
+    
+    st.success(f"✓ Found {len(regular_cores)} breedable cores in vault")
+    st.session_state.vault_cores = regular_cores
+    st.divider()
 
-# Display database if loaded
-if 'core_database' in st.session_state and 'power_database' in st.session_state:
-    cores = st.session_state.core_database
-    power_data = st.session_state.power_database
+# Display if vault is loaded
+if 'vault_cores' in st.session_state:
+    cores = st.session_state.vault_cores
     
-    st.header("🗄️ Power Database")
-    st.caption(f"Showing {len(cores)} cores")
+    st.info(f"📊 Analyzing {len(cores)} cores for breeding opportunities...")
     
-    # Filters
-    st.subheader("🔍 Filters")
+    # Fetch all needed data
+    with st.spinner("Loading breeding and performance data..."):
+        hids = [c['hid'] for c in cores]
+        
+        breeding_data = fetch_api("/cores/splicing_info_bulk", {"hids": hids}, timeout=120)
+        power_data = fetch_api("/cores/power_bulk", {"hids": hids}, timeout=120)
+        stats_data = fetch_api("/cores/racing_stats_bulk", {"hids": hids}, timeout=180)
     
-    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
+    if not breeding_data:
+        st.error("Failed to load breeding data")
+        st.stop()
     
-    with filter_col1:
-        elements = sorted(list(set([c.get('element', 'unknown') for c in cores])))
-        element_filter = st.multiselect("Element", elements, default=[])
+    breeding_lookup = {b['splice_core']['hid']: b for b in breeding_data if b.get('splice_core')}
+    power_lookup = {p['hid']: p for p in power_data} if power_data else {}
+    stats_lookup = {s['hid']: s for s in stats_data} if stats_data else {}
     
-    with filter_col2:
-        types = sorted(list(set([c.get('type', 'unknown') for c in cores])))
-        type_filter = st.multiselect("Type", types, default=[])
+    # Build core info with categories
+    available_cores = []
+    categorization_debug = {
+        'sprint': 0,
+        'mid': 0,
+        'marathon': 0,
+        'unproven': 0,
+        'total_checked': 0
+    }
     
-    with filter_col3:
-        genders = sorted(list(set([c.get('gender', 'unknown') for c in cores])))
-        gender_filter = st.multiselect("Gender", genders, default=[])
+    for core in cores:
+        breeding_info = breeding_lookup.get(core['hid'])
+        if not breeding_info:
+            continue
+        
+        splice_core = breeding_info.get('splice_core', {})
+        life_splices = splice_core.get('life_splices_n', 0)
+        max_life = splice_core.get('mxlife_splices_n', 999999999)
+        
+        if life_splices >= max_life:
+            continue
+        
+        power = power_lookup.get(core['hid'], {})
+        mode_data = power.get('power', {}).get('bike', {})
+        
+        stats = stats_lookup.get(core['hid'], {})
+        categories = categorize_core_by_distance(stats, 'bike')
+        
+        categorization_debug['total_checked'] += 1
+        if 'sprint' in categories:
+            categorization_debug['sprint'] += 1
+        if 'mid' in categories:
+            categorization_debug['mid'] += 1
+        if 'marathon' in categories:
+            categorization_debug['marathon'] += 1
+        if not categories:
+            categorization_debug['unproven'] += 1
+        
+        core_info = {
+            'hid': core['hid'],
+            'name': core.get('name', 'Unnamed'),
+            'element': core.get('element'),
+            'type': core.get('type'),
+            'gender': core.get('gender'),
+            'categories': categories,
+            'in_stud': splice_core.get('in_stud', False),
+            'price_usd': splice_core.get('price_usd', 0),
+            'power': mode_data.get('power', {}).get('fill', {}).get('per', 0),
+            'variance': mode_data.get('variance', {}).get('fill', {}).get('per', 0),
+            'adjodds': mode_data.get('adjodds', {}).get('fill', {}).get('per', 0),
+            'father_hid': None  # Will be extracted from parents field
+        }
+        
+        # Extract father HID from parents field if it exists
+        parents = breeding_info.get('parents')
+        if parents:
+            # Parents structure might be [male_hid, female_hid] or {"male": hid, "female": hid}
+            # We need to identify which is the father (stud/male parent)
+            if isinstance(parents, list) and len(parents) >= 2:
+                # Assuming parents[0] is male/father
+                core_info['father_hid'] = parents[0]
+            elif isinstance(parents, dict):
+                core_info['father_hid'] = parents.get('male') or parents.get('father')
+        
+        available_cores.append(core_info)
     
-    with filter_col4:
-        mode_display = st.selectbox("Display Mode Stats", ["All Modes", "Bike Only", "Car Only", "Horse Only"])
+    # Show categorization debug
+    with st.expander("🔍 Distance Categorization Analysis", expanded=True):
+        st.write(f"**Total cores analyzed:** {categorization_debug['total_checked']}")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("🏃 Sprint", categorization_debug['sprint'], help=">28% win rate at 900-1300m with 20+ races")
+        with col2:
+            st.metric("🏃‍♂️ Mid-Distance", categorization_debug['mid'], help=">28% win rate at 1400-1800m with 20+ races")
+        with col3:
+            st.metric("🏃‍♀️ Marathon", categorization_debug['marathon'], help=">28% win rate at 1900-2300m with 20+ races")
+        with col4:
+            st.metric("❓ Unproven", categorization_debug['unproven'], help="Don't meet criteria")
+        
+        if categorization_debug['unproven'] > categorization_debug['total_checked'] * 0.8:
+            st.warning("⚠️ Most cores are unproven. This could mean: (1) Not enough races, (2) Win rates below 28%, or (3) Racing stats didn't load properly.")
     
-    # Power range filters
-    st.markdown("**Power Range Filters:**")
-    power_col1, power_col2, power_col3 = st.columns(3)
-    
-    with power_col1:
-        pwr_min = st.slider("Min Bike PWR %", 0, 100, 0)
-    
-    with power_col2:
-        var_min = st.slider("Min Bike VAR %", 0, 100, 0)
-    
-    with power_col3:
-        adj_min = st.slider("Min Bike ADJ %", 0, 100, 0)
+    males = [c for c in available_cores if c['gender'] == 'male']
+    females = [c for c in available_cores if c['gender'] == 'female']
     
     st.divider()
     
-    # Build table
-    table_rows = []
+    # Helper function to calculate breeding pairs with half-sibling tracking
+    excluded_half_siblings = {'sprint': 0, 'mid': 0, 'marathon': 0, 'gamble': 0}
     
-    for core in cores:
-        # Apply basic filters
-        if element_filter and core.get('element') not in element_filter:
-            continue
-        if type_filter and core.get('type') not in type_filter:
-            continue
-        if gender_filter and core.get('gender') not in gender_filter:
-            continue
+    def calculate_breeding_pairs(males, females, category_filter=None, gamble=False):
+        pairs = []
+        category_key = category_filter if category_filter else 'gamble'
         
-        power = power_data.get(core['hid'], {})
-        power_stats = power.get('power', {})
+        for male in males:
+            for female in females:
+                # BREEDING RESTRICTION: Skip half-siblings (same father/stud)
+                male_father = male.get('father_hid')
+                female_father = female.get('father_hid')
+                
+                # If both have fathers and they're the same, they're half-siblings - SKIP
+                if male_father and female_father and male_father == female_father:
+                    excluded_half_siblings[category_key] += 1
+                    continue
+                
+                # Category filtering
+                if not gamble and category_filter:
+                    if category_filter not in male['categories'] or category_filter not in female['categories']:
+                        continue
+                
+                power_score = (male['power'] + female['power']) / 2
+                var_score = (male['variance'] + female['variance']) / 2
+                adj_score = (male['adjodds'] + female['adjodds']) / 2
+                
+                element_bonus = 10 if male['element'] == female['element'] else 0
+                
+                if gamble:
+                    total_score = (power_score * 0.5 + var_score * 0.3 + adj_score * 0.2 + element_bonus)
+                else:
+                    category_overlap = len(male['categories'] & female['categories'])
+                    distance_bonus = category_overlap * 15
+                    total_score = (power_score * 0.3 + var_score * 0.2 + adj_score * 0.2 + 
+                                  distance_bonus + element_bonus)
+                
+                pairs.append({
+                    'male': male,
+                    'female': female,
+                    'score': total_score,
+                    'expected_power': power_score,
+                    'expected_var': var_score,
+                    'expected_adj': adj_score,
+                    'element_match': male['element'] == female['element']
+                })
         
-        # Get bike stats for filtering
-        bike_stats = power_stats.get('bike', {})
-        bike_pwr = bike_stats.get('power', {}).get('fill', {}).get('per', 0)
-        bike_var = bike_stats.get('variance', {}).get('fill', {}).get('per', 0)
-        bike_adj = bike_stats.get('adjodds', {}).get('fill', {}).get('per', 0)
-        
-        # Apply power filters
-        if bike_pwr < pwr_min or bike_var < var_min or bike_adj < adj_min:
-            continue
-        
-        row = {
-            'HID': core['hid'],
-            'Name': core.get('name', 'Unnamed'),
-            'Element': core.get('element', '?'),
-            'Type': core.get('type', '?'),
-            'Gender': core.get('gender', '?'),
-        }
-        
-        # Add stats based on display mode
-        if mode_display in ["All Modes", "Bike Only"]:
-            row['🚲 PWR'] = f"{bike_pwr:.1f}%"
-            row['🚲 VAR'] = f"{bike_var:.1f}%"
-            row['🚲 ADJ'] = f"{bike_adj:.1f}%"
-        
-        if mode_display in ["All Modes", "Car Only"]:
-            car_stats = power_stats.get('car', {})
-            car_pwr = car_stats.get('power', {}).get('fill', {}).get('per', 0)
-            car_var = car_stats.get('variance', {}).get('fill', {}).get('per', 0)
-            car_adj = car_stats.get('adjodds', {}).get('fill', {}).get('per', 0)
+        return sorted(pairs, key=lambda x: x['score'], reverse=True)[:10]
+    
+    # Create 4 breeding categories
+    sprint_pairs = calculate_breeding_pairs(males, females, 'sprint')
+    mid_pairs = calculate_breeding_pairs(males, females, 'mid')
+    marathon_pairs = calculate_breeding_pairs(males, females, 'marathon')
+    gamble_pairs = calculate_breeding_pairs(males, females, gamble=True)
+    
+    # Display tabs for each category
+    cat_tabs = st.tabs(["🏃 Sprint (Top 10)", "🏃‍♂️ Mid-Distance (Top 10)", "🏃‍♀️ Marathon (Top 10)", "🎲 Gamble (Top 10)"])
+    
+    all_categories = [
+        (cat_tabs[0], sprint_pairs, "Sprint", "🏃", "900m-1300m specialists"),
+        (cat_tabs[1], mid_pairs, "Mid-Distance", "🏃‍♂️", "1400m-1800m specialists"),
+        (cat_tabs[2], marathon_pairs, "Marathon", "🏃‍♀️", "1900m-2300m specialists"),
+        (cat_tabs[3], gamble_pairs, "Gamble", "🎲", "⚠️ Pure power breeding - distance unpredictable")
+    ]
+    
+    for tab, pairs, cat_name, icon, desc in all_categories:
+        with tab:
+            st.markdown(f"**{desc}**")
             
-            row['🚗 PWR'] = f"{car_pwr:.1f}%"
-            row['🚗 VAR'] = f"{car_var:.1f}%"
-            row['🚗 ADJ'] = f"{car_adj:.1f}%"
-        
-        if mode_display in ["All Modes", "Horse Only"]:
-            horse_stats = power_stats.get('horse', {})
-            horse_pwr = horse_stats.get('power', {}).get('fill', {}).get('per', 0)
-            horse_var = horse_stats.get('variance', {}).get('fill', {}).get('per', 0)
-            horse_adj = horse_stats.get('adjodds', {}).get('fill', {}).get('per', 0)
+            # Show exclusion info
+            category_key = cat_name.lower() if cat_name != "Gamble" else "gamble"
+            excluded_count = excluded_half_siblings.get(category_key, 0)
+            if excluded_count > 0:
+                st.caption(f"ℹ️ Excluded {excluded_count} pairs (half-siblings - same father)")
             
-            row['🐴 PWR'] = f"{horse_pwr:.1f}%"
-            row['🐴 VAR'] = f"{horse_var:.1f}%"
-            row['🐴 ADJ'] = f"{horse_adj:.1f}%"
-        
-        table_rows.append(row)
-    
-    st.info(f"📊 Showing {len(table_rows)} cores (after filters)")
-    
-    if table_rows:
-        df = pd.DataFrame(table_rows)
-        
-        # Display table
-        st.dataframe(
-            df,
-            use_container_width=True,
-            height=600,
-            hide_index=True
-        )
-        
-        # Download button
-        csv = df.to_csv(index=False)
-        st.download_button(
-            "📥 Download Database as CSV",
-            csv,
-            f"power_database_{len(table_rows)}_cores.csv",
-            "text/csv"
-        )
-        
-        # Quick stats
-        st.divider()
-        st.subheader("📈 Quick Stats")
-        
-        stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
-        
-        with stat_col1:
-            st.metric("Total Cores", len(table_rows))
-        
-        with stat_col2:
-            bike_pwrs = [float(r['🚲 PWR'].rstrip('%')) for r in table_rows if '🚲 PWR' in r]
-            avg_pwr = sum(bike_pwrs) / len(bike_pwrs) if bike_pwrs else 0
-            st.metric("Avg Bike PWR", f"{avg_pwr:.1f}%")
-        
-        with stat_col3:
-            bike_vars = [float(r['🚲 VAR'].rstrip('%')) for r in table_rows if '🚲 VAR' in r]
-            avg_var = sum(bike_vars) / len(bike_vars) if bike_vars else 0
-            st.metric("Avg Bike VAR", f"{avg_var:.1f}%")
-        
-        with stat_col4:
-            bike_adjs = [float(r['🚲 ADJ'].rstrip('%')) for r in table_rows if '🚲 ADJ' in r]
-            avg_adj = sum(bike_adjs) / len(bike_adjs) if bike_adjs else 0
-            st.metric("Avg Bike ADJ", f"{avg_adj:.1f}%")
-    else:
-        st.warning("No cores match the current filters")
+            if not pairs:
+                st.warning(f"No {cat_name} pairs found")
+                continue
+            
+            st.success(f"Found {len(pairs)} {cat_name} breeding pairs!")
+            
+            for idx, pair in enumerate(pairs, 1):
+                with st.expander(f"{icon} Pair #{idx} - Score: {pair['score']:.1f}/100", expanded=(idx==1)):
+                    col1, col2, col3 = st.columns([2, 2, 1])
+                    
+                    with col1:
+                        st.markdown(f"**♂️ {pair['male']['name']}** (#{pair['male']['hid']})")
+                        
+                        if pair['male']['categories']:
+                            cats = '/'.join([c.title() for c in pair['male']['categories']])
+                            st.caption(f"🎯 {cats}")
+                        else:
+                            st.caption("🎯 Unproven")
+                        
+                        st.caption(f"{pair['male']['element'].title()} • {pair['male']['type'].title()}")
+                        st.caption(f"PWR: {pair['male']['power']:.1f}% | VAR: {pair['male']['variance']:.1f}% | ADJ: {pair['male']['adjodds']:.1f}%")
+                        
+                        if pair['male']['in_stud']:
+                            st.success(f"✅ In Stud - ${pair['male']['price_usd']:.2f}")
+                        else:
+                            st.warning("❌ Not in stud")
+                    
+                    with col2:
+                        st.markdown(f"**♀️ {pair['female']['name']}** (#{pair['female']['hid']})")
+                        
+                        if pair['female']['categories']:
+                            cats = '/'.join([c.title() for c in pair['female']['categories']])
+                            st.caption(f"🎯 {cats}")
+                        else:
+                            st.caption("🎯 Unproven")
+                        
+                        st.caption(f"{pair['female']['element'].title()} • {pair['female']['type'].title()}")
+                        st.caption(f"PWR: {pair['female']['power']:.1f}% | VAR: {pair['female']['variance']:.1f}% | ADJ: {pair['female']['adjodds']:.1f}%")
+                        
+                        if pair['female']['in_stud']:
+                            st.success(f"✅ In Stud - ${pair['female']['price_usd']:.2f}")
+                        else:
+                            st.warning("❌ Not in stud")
+                    
+                    with col3:
+                        st.metric("Exp. PWR", f"{pair['expected_power']:.1f}%")
+                        st.metric("Exp. VAR", f"{pair['expected_var']:.1f}%")
+                        st.metric("Exp. ADJ", f"{pair['expected_adj']:.1f}%")
+                    
+                    if pair['element_match']:
+                        st.info("🎯 Same element - Higher offspring element match probability")
 
 else:
-    st.info("👆 Select a data source and load cores to begin")
+    st.info("👆 Enter a vault address or name above to analyze breeding opportunities")
     
-    with st.expander("💡 How to Use"):
+    with st.expander("💡 What This Tool Does"):
         st.markdown("""
-        **Power Database** lets you search and analyze core power statistics.
+        **Breeding Analyzer** helps you find optimal breeding pairs from your vault.
         
-        **Data Sources:**
-        - **Scan Core ID Range:** Check cores from ID X to ID Y (e.g., 1-1000)
-        - **Load from Vault:** Import all cores from a specific vault
-        - **Enter Specific IDs:** Paste a list of core IDs to analyze
+        **Four Categories:**
+        - **🏃 Sprint:** Cores that excel at 900-1300m
+        - **🏃‍♂️ Mid-Distance:** Cores that excel at 1400-1800m  
+        - **🏃‍♀️ Marathon:** Cores that excel at 1900-2300m
+        - **🎲 Gamble:** Pure power breeding (ignores distance)
         
-        **Features:**
-        - View PWR, VAR, and ADJ odds for Bike/Car/Horse
-        - Filter by element, type, gender
-        - Filter by minimum power thresholds
-        - Sort by any column (click header)
-        - Export to CSV
+        **How It Works:**
+        1. Analyzes all cores in your vault
+        2. Categorizes by racing performance (>28% win rate, 20+ races)
+        3. Finds best male + female combinations
+        4. Scores based on power, compatibility, and distance match
+        5. Shows top 10 pairs per category
         
-        **Tips:**
-        - Start with smaller ranges (100-500 cores) to test
-        - Use filters to find high-performers
-        - Download results for offline analysis
-        - Scanning large ranges (5000+) may take several minutes
-        
-        **Example Searches:**
-        - "Show all genesis cores with Bike PWR > 80%"
-        - "Find fire element cores with high variance"
-        - "Compare power stats across my vault"
+        **Great For:**
+        - Planning breeding strategy
+        - Finding complementary pairs
+        - Maximizing offspring potential
+        - Identifying which cores to put in stud
         """)
