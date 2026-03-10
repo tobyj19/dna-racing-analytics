@@ -131,19 +131,26 @@ st.markdown("""
         border-top: 1px solid rgba(102, 126, 234, 0.1);
     }
     
-    /* Streamlit button override */
+    /* Hide default button styling but keep clickable */
+    .stButton {
+        margin-top: 10px;
+    }
+    
     .stButton button {
         width: 100%;
-        height: 100%;
-        background: transparent !important;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         border: none !important;
-        padding: 0 !important;
-        color: inherit !important;
+        border-radius: 8px !important;
+        padding: 12px 24px !important;
+        color: white !important;
+        font-weight: 600 !important;
+        font-size: 16px !important;
+        transition: all 0.3s ease !important;
     }
     
     .stButton button:hover {
-        background: transparent !important;
-        border: none !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -186,7 +193,7 @@ with col1:
         <div class="tool-description">Search and analyze individual core performance, stats, and race history</div>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("Open", key="btn_analytics", use_container_width=True):
+    if st.button("Launch Tool", key="btn_analytics", use_container_width=True):
         st.switch_page("pages/1_Core_Analytics.py")
 
 with col2:
@@ -197,7 +204,7 @@ with col2:
         <div class="tool-description">Compare multiple cores side-by-side across all metrics</div>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("Open", key="btn_comparison", use_container_width=True):
+    if st.button("Launch Tool", key="btn_comparison", use_container_width=True):
         st.switch_page("pages/2_Core_Comparison.py")
 
 with col3:
@@ -208,7 +215,7 @@ with col3:
         <div class="tool-description">Find upcoming races and optimal racing opportunities</div>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("Open", key="btn_races", use_container_width=True):
+    if st.button("Launch Tool", key="btn_races", use_container_width=True):
         st.switch_page("pages/3_Race_Finder.py")
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -224,7 +231,7 @@ with col1:
         <div class="tool-description">Analyze entire vaults with filters, stats, and performance tracking</div>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("Open", key="btn_vault", use_container_width=True):
+    if st.button("Launch Tool", key="btn_vault", use_container_width=True):
         st.switch_page("pages/4_Vault_Portfolio.py")
 
 with col2:
@@ -235,7 +242,7 @@ with col2:
         <div class="tool-description">Find optimal breeding pairs with distance categorization</div>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("Open", key="btn_breeding", use_container_width=True):
+    if st.button("Launch Tool", key="btn_breeding", use_container_width=True):
         st.switch_page("pages/5_Breeding_Analyzer.py")
 
 with col3:
@@ -246,7 +253,7 @@ with col3:
         <div class="tool-description">Top 30 fastest cores per distance vs global averages</div>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("Open", key="btn_speed", use_container_width=True):
+    if st.button("Launch Tool", key="btn_speed", use_container_width=True):
         st.switch_page("pages/6_Speed_Rankings.py")
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -262,7 +269,7 @@ with col1:
         <div class="tool-description">Search and filter power stats across all cores</div>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("Open", key="btn_database", use_container_width=True):
+    if st.button("Launch Tool", key="btn_database", use_container_width=True):
         st.switch_page("pages/7_Power_Database.py")
 
 with col2:
